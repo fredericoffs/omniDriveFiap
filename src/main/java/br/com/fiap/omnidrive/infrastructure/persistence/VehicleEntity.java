@@ -1,0 +1,90 @@
+package br.com.fiap.omnidrive.infrastructure.persistence;
+
+import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * Mapeamento JPA da tabela {@code vehicle}. Converte de e para o {@link Vehicle} do domínio; as datas de criação e
+ * atualização são preenchidas pelo Hibernate.
+ */
+@Entity
+@Table(name = "vehicle")
+class VehicleEntity {
+
+  @Id
+  private UUID id;
+
+  private String brand;
+
+  private String model;
+
+  private short year;
+
+  private String color;
+
+  private BigDecimal purchasePrice;
+
+  private BigDecimal salePrice;
+
+  @Enumerated(EnumType.STRING)
+  private VehicleStatus status;
+
+  @Enumerated(EnumType.STRING)
+  private VehicleOrigin origin;
+
+  @CreationTimestamp
+  @Column(updatable = false)
+  private Instant createdAt;
+
+  @UpdateTimestamp
+  private Instant updatedAt;
+
+  protected VehicleEntity() {
+  }
+
+  VehicleEntity(UUID id) {
+    this.id = id;
+  }
+
+  /**
+   * Copia o estado do veículo do domínio para esta entidade, sem tocar nas datas de criação e atualização.
+   */
+  void copyFrom(Vehicle vehicle) {
+    brand = vehicle.getBrand();
+    model = vehicle.getModel();
+    year = (short) vehicle.getYear();
+    color = vehicle.getColor();
+    purchasePrice = vehicle.getPurchasePrice().amount();
+    salePrice = vehicle.getSalePrice().amount();
+    status = vehicle.getStatus();
+    origin = vehicle.getOrigin();
+  }
+
+  Vehicle toDomain() {
+    return Vehicle.restore(
+        id,
+        brand,
+        model,
+        year,
+        color,
+        new Money(purchasePrice),
+        new Money(salePrice),
+        origin,
+        status
+    );
+  }
+}

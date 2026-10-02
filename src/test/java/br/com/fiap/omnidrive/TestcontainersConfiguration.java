@@ -10,7 +10,7 @@ import org.testcontainers.utility.DockerImageName;
  * Sobe um Postgres 18 via Testcontainers e conecta a aplicação a ele nos testes.
  */
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
   @Bean
   @ServiceConnection
