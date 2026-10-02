@@ -21,7 +21,11 @@ import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
@@ -93,6 +97,26 @@ class VehicleControllerTest {
     );
   }
 
+  private static Stream<Arguments> updateExceptions() {
+    return Stream.of(
+        Arguments.of(
+            new NotFoundException("Veículo não encontrado"),
+            HttpStatus.NOT_FOUND,
+            "Recurso não encontrado"
+        ),
+        Arguments.of(
+            new ConcurrentUpdateException("Veículo alterado"),
+            HttpStatus.CONFLICT,
+            "Conflito de atualização"
+        ),
+        Arguments.of(
+            new BusinessRuleException("O veículo não pode ser editado no status RESERVED"),
+            HttpStatus.UNPROCESSABLE_CONTENT,
+            "Regra de negócio violada"
+        )
+    );
+  }
+
   @Test
   void registersVehicle() {
     when(registerVehicle.execute(any())).thenReturn(vehicle("40000.50", VehicleStatus.RECEIVED, 0));
@@ -102,21 +126,23 @@ class VehicleControllerTest {
         .content(VALID_BODY)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.CREATED);
-    assertThat(response).bodyJson().isLenientlyEqualTo("""
-        {
-          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
-          "brand": "Fiat",
-          "model": "Uno",
-          "year": 2020,
-          "color": "Prata",
-          "purchasePrice": 30000.00,
-          "salePrice": 40000.50,
-          "origin": "OWNED",
-          "status": "RECEIVED",
-          "version": 0
-        }
-        """);
+    assertThat(response)
+        .hasStatus(HttpStatus.CREATED)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "brand": "Fiat",
+              "model": "Uno",
+              "year": 2020,
+              "color": "Prata",
+              "purchasePrice": 30000.00,
+              "salePrice": 40000.50,
+              "origin": "OWNED",
+              "status": "RECEIVED",
+              "version": 0
+            }
+            """);
   }
 
   @Test
@@ -136,17 +162,19 @@ class VehicleControllerTest {
             """)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
-    assertThat(response).bodyJson().isLenientlyEqualTo("""
-        {
-          "status": 400,
-          "title": "Requisição inválida",
-          "errors": {
-            "brand": "A marca é obrigatória",
-            "salePrice": "O preço de venda deve ser maior que zero"
-          }
-        }
-        """);
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": 400,
+              "title": "Requisição inválida",
+              "errors": {
+                "brand": "A marca é obrigatória",
+                "salePrice": "O preço de venda deve ser maior que zero"
+              }
+            }
+            """);
     verifyNoInteractions(registerVehicle);
   }
 
@@ -157,8 +185,11 @@ class VehicleControllerTest {
         .content(VALID_BODY.replace("OWNED", "STOLEN"))
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
-    assertThat(response).bodyJson().extractingPath("$.title").isEqualTo("Requisição inválida");
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .extractingPath("$.title")
+        .isEqualTo("Requisição inválida");
     verifyNoInteractions(registerVehicle);
   }
 
@@ -171,14 +202,16 @@ class VehicleControllerTest {
         .content(VALID_BODY)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.UNPROCESSABLE_CONTENT);
-    assertThat(response).bodyJson().isLenientlyEqualTo("""
-        {
-          "status": 422,
-          "title": "Regra de negócio violada",
-          "detail": "O ano deve estar entre 1900 e 2027"
-        }
-        """);
+    assertThat(response)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": 422,
+              "title": "Regra de negócio violada",
+              "detail": "O ano deve estar entre 1900 e 2027"
+            }
+            """);
   }
 
   @Test
@@ -190,8 +223,11 @@ class VehicleControllerTest {
         .content(VALID_UPDATE_BODY)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.OK);
-    assertThat(response).bodyJson().extractingPath("$.version").isEqualTo(3);
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.version")
+        .isEqualTo(3);
     verify(updateVehicle).execute(
         VEHICLE_ID,
         new UpdateVehicleInput(
@@ -214,36 +250,38 @@ class VehicleControllerTest {
         .content(VALID_BODY)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
-    assertThat(response).bodyJson().extractingPath("$.errors.version")
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .extractingPath("$.errors.version")
         .isEqualTo("A versão do veículo é obrigatória");
     verifyNoInteractions(updateVehicle);
   }
 
-  @Test
-  void returnsNotFoundWhenVehicleDoesNotExist() {
-    when(updateVehicle.execute(eq(VEHICLE_ID), any())).thenThrow(new NotFoundException("Veículo não encontrado"));
+  @ParameterizedTest(name = "{1}")
+  @MethodSource("updateExceptions")
+  void translatesUpdateExceptionToHttpStatus(
+      RuntimeException exception,
+      HttpStatus expectedStatus,
+      String expectedTitle
+  ) {
+    when(updateVehicle.execute(eq(VEHICLE_ID), any())).thenThrow(exception);
 
     var response = mvc.put().uri("/vehicles/{id}", VEHICLE_ID)
         .contentType(MediaType.APPLICATION_JSON)
         .content(VALID_UPDATE_BODY)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.NOT_FOUND);
-    assertThat(response).bodyJson().extractingPath("$.title").isEqualTo("Recurso não encontrado");
-  }
-
-  @Test
-  void returnsConflictWhenVersionIsOutdated() {
-    when(updateVehicle.execute(eq(VEHICLE_ID), any())).thenThrow(new ConcurrentUpdateException("Veículo alterado"));
-
-    var response = mvc.put().uri("/vehicles/{id}", VEHICLE_ID)
-        .contentType(MediaType.APPLICATION_JSON)
-        .content(VALID_UPDATE_BODY)
-        .exchange();
-
-    assertThat(response).hasStatus(HttpStatus.CONFLICT);
-    assertThat(response).bodyJson().extractingPath("$.title").isEqualTo("Conflito de atualização");
+    assertThat(response)
+        .hasStatus(expectedStatus)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": %d,
+              "title": "%s",
+              "detail": "%s"
+            }
+            """.formatted(expectedStatus.value(), expectedTitle, exception.getMessage()));
   }
 
   @Test
@@ -253,8 +291,11 @@ class VehicleControllerTest {
         .content(VALID_UPDATE_BODY)
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.BAD_REQUEST);
-    assertThat(response).bodyJson().extractingPath("$.detail").isEqualTo("Valor inválido para o parâmetro id");
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("Valor inválido para o parâmetro id");
   }
 
   @Test
@@ -266,7 +307,11 @@ class VehicleControllerTest {
 
     var response = mvc.get().uri("/vehicles/for-sale").exchange();
 
-    assertThat(response).hasStatus(HttpStatus.OK);
-    assertThat(response).bodyJson().extractingPath("$[*].salePrice").asArray().containsExactly(20000.00, 35000.00);
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$[*].salePrice")
+        .asArray()
+        .containsExactly(20000.00, 35000.00);
   }
 }

@@ -7,6 +7,7 @@ import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
@@ -14,10 +15,17 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class MoneyTest {
 
-  @Test
-  void normalizesToTwoDecimalPlaces() {
-    assertThat(Money.of("1500").amount()).isEqualTo(new BigDecimal("1500.00"));
-    assertThat(Money.of("1500.5")).isEqualTo(Money.of("1500.50"));
+  @ParameterizedTest
+  @CsvSource({
+      "1500, 1500.00",
+      "1500.5, 1500.50",
+      "10.5000, 10.50"
+  })
+  void normalizesToTwoDecimalPlaces(
+      String amount,
+      String expected
+  ) {
+    assertThat(Money.of(amount).amount()).isEqualTo(new BigDecimal(expected));
   }
 
   @ParameterizedTest
@@ -33,11 +41,6 @@ class MoneyTest {
     assertThatThrownBy(() -> Money.of("10.001"))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage("O valor deve ter no máximo duas casas decimais");
-  }
-
-  @Test
-  void acceptsTrailingZerosBeyondSecondDecimalPlace() {
-    assertThat(Money.of("10.5000").amount()).isEqualTo(new BigDecimal("10.50"));
   }
 
   @Test

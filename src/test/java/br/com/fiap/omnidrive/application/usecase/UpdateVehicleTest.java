@@ -116,7 +116,9 @@ class UpdateVehicleTest {
   void rejectsUpdateBasedOnOutdatedVersion() {
     when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
 
-    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, input(CURRENT_VERSION - 1)))
+    var outdatedInput = input(CURRENT_VERSION - 1);
+
+    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, outdatedInput))
         .isInstanceOf(ConcurrentUpdateException.class)
         .hasMessageContaining(VEHICLE_ID.toString());
     verify(vehicleGateway, never()).save(any());
@@ -126,7 +128,9 @@ class UpdateVehicleTest {
   void requiresVersion() {
     when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
 
-    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, input(null)))
+    var inputWithoutVersion = input(null);
+
+    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, inputWithoutVersion))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage("A versão do veículo é obrigatória");
     verify(vehicleGateway, never()).save(any());

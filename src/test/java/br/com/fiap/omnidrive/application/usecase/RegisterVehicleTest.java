@@ -13,9 +13,13 @@ import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.math.BigDecimal;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -39,6 +43,13 @@ class RegisterVehicleTest {
         purchasePrice,
         salePrice,
         VehicleOrigin.CONSIGNED
+    );
+  }
+
+  private static Stream<Arguments> missingPriceArguments() {
+    return Stream.of(
+        Arguments.of(null, new BigDecimal("40000"), "O valor de entrada é obrigatório"),
+        Arguments.of(new BigDecimal("30000"), null, "O preço de venda é obrigatório")
     );
   }
 
@@ -66,20 +77,29 @@ class RegisterVehicleTest {
     verify(vehicleGateway).save(vehicle);
   }
 
-  @Test
-  void reportsWhichPriceIsMissing() {
-    assertThatThrownBy(() -> registerVehicle.execute(input(null, new BigDecimal("40000"))))
+  @ParameterizedTest
+  @MethodSource("missingPriceArguments")
+  void reportsWhichPriceIsMissing(
+      BigDecimal purchasePrice,
+      BigDecimal salePrice,
+      String expectedMessage
+  ) {
+    var registerVehicleInput = input(purchasePrice, salePrice);
+
+    assertThatThrownBy(() -> registerVehicle.execute(registerVehicleInput))
         .isInstanceOf(BusinessRuleException.class)
-        .hasMessage("O valor de entrada é obrigatório");
-    assertThatThrownBy(() -> registerVehicle.execute(input(new BigDecimal("30000"), null)))
-        .isInstanceOf(BusinessRuleException.class)
-        .hasMessage("O preço de venda é obrigatório");
+        .hasMessage(expectedMessage);
+
+    verify(vehicleGateway, never()).save(any());
   }
 
   @Test
-  void doesNotSaveInvalidVehicle() {
-    assertThatThrownBy(() -> registerVehicle.execute(input(new BigDecimal("30000"), BigDecimal.ZERO)))
-        .isInstanceOf(BusinessRuleException.class);
+  void doesNotSaveVehicleWithZeroSalePrice() {
+    var registerVehicleInput = input(new BigDecimal("30000"), BigDecimal.ZERO);
+
+    assertThatThrownBy(() -> registerVehicle.execute(registerVehicleInput))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("O valor deve ser maior que zero");
 
     verify(vehicleGateway, never()).save(any());
   }

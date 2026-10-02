@@ -11,6 +11,7 @@ import java.time.Year;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -25,6 +26,25 @@ class VehicleTest {
 
   private static final UUID SALE_ID = UUID.randomUUID();
 
+  private static final Money PRICE = Money.of("30000");
+
+  private static final Money NEW_PURCHASE_PRICE = Money.of("35000");
+
+  static Stream<Arguments> missingRequiredFields() {
+    return Stream.of(
+        Arguments.of(" ", "Uno", "Prata", PRICE, PRICE, VehicleOrigin.OWNED, "A marca é obrigatória"),
+        Arguments.of("Fiat", null, "Prata", PRICE, PRICE, VehicleOrigin.OWNED, "O modelo é obrigatório"),
+        Arguments.of("Fiat", "Uno", "", PRICE, PRICE, VehicleOrigin.OWNED, "A cor é obrigatória"),
+        Arguments.of("Fiat", "Uno", "Prata", null, PRICE, VehicleOrigin.OWNED, "O valor de entrada é obrigatório"),
+        Arguments.of("Fiat", "Uno", "Prata", PRICE, null, VehicleOrigin.OWNED, "O preço de venda é obrigatório"),
+        Arguments.of("Fiat", "Uno", "Prata", PRICE, PRICE, null, "A origem é obrigatória")
+    );
+  }
+
+  static IntStream yearsOutOfRange() {
+    return IntStream.of(1899, Year.now().getValue() + 2);
+  }
+
   static Stream<Arguments> invalidTransitions() {
     return Stream.of(
             transition("startPreparation", VehicleStatus.RECEIVED, Vehicle::startPreparation),
@@ -33,7 +53,7 @@ class VehicleTest {
             transition("confirmSale", VehicleStatus.RESERVED, v -> v.confirmSale(SALE_ID)),
             transition("releaseReservation", VehicleStatus.RESERVED, v -> v.releaseReservation(SALE_ID)),
             transition("reverseSale", VehicleStatus.SOLD, v -> v.reverseSale(SALE_ID)),
-            transition("readmit", VehicleStatus.SOLD, v -> v.readmit(Money.of("35000"))))
+            transition("readmit", VehicleStatus.SOLD, v -> v.readmit(NEW_PURCHASE_PRICE)))
         .flatMap(t -> t);
   }
 
@@ -173,42 +193,46 @@ class VehicleTest {
   void blocksUpdateWhenReservedOrSold(VehicleStatus status) {
     var vehicle = restore(status);
 
-    assertThatThrownBy(() -> vehicle.update("Volkswagen", "Gol", 2019, "Branco", Money.of("25000"),
-        Money.of("32000"), VehicleOrigin.CONSIGNED))
+    var costPrice = Money.of("25000");
+    var salePrice = Money.of("32000");
+
+    assertThatThrownBy(() -> vehicle.update("Volkswagen", "Gol", 2019, "Branco", costPrice,
+        salePrice, VehicleOrigin.CONSIGNED))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining(status.name());
+
     assertThat(vehicle.getBrand()).isEqualTo("Fiat");
   }
 
-  @Test
-  void rejectsMissingRequiredFields() {
-    var price = Money.of("30000");
-
-    assertThatThrownBy(() -> Vehicle.register(" ", "Uno", 2020, "Prata", price, price, VehicleOrigin.OWNED))
-        .hasMessage("A marca é obrigatória");
-    assertThatThrownBy(() -> Vehicle.register("Fiat", null, 2020, "Prata", price, price, VehicleOrigin.OWNED))
-        .hasMessage("O modelo é obrigatório");
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", 2020, "", price, price, VehicleOrigin.OWNED))
-        .hasMessage("A cor é obrigatória");
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", 2020, "Prata", null, price, VehicleOrigin.OWNED))
-        .hasMessage("O valor de entrada é obrigatório");
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", 2020, "Prata", price, null, VehicleOrigin.OWNED))
-        .hasMessage("O preço de venda é obrigatório");
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", 2020, "Prata", price, price, null))
-        .hasMessage("A origem é obrigatória");
+  @ParameterizedTest(name = "{6}")
+  @MethodSource("missingRequiredFields")
+  void rejectsMissingRequiredFields(
+      String brand,
+      String model,
+      String color,
+      Money purchasePrice,
+      Money salePrice,
+      VehicleOrigin origin,
+      String expectedMessage
+  ) {
+    assertThatThrownBy(() -> Vehicle.register(brand, model, 2020, color, purchasePrice, salePrice, origin))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage(expectedMessage);
   }
 
   @Test
-  void rejectsYearOutOfRange() {
-    var price = Money.of("30000");
+  void acceptsNextYear() {
     var nextYear = Year.now().getValue() + 1;
 
-    assertThat(Vehicle.register("Fiat", "Uno", nextYear, "Prata", price, price, VehicleOrigin.OWNED).getYear())
-        .isEqualTo(nextYear);
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", 1899, "Prata", price, price, VehicleOrigin.OWNED))
-        .isInstanceOf(BusinessRuleException.class);
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", nextYear + 1, "Prata", price, price,
-        VehicleOrigin.OWNED))
+    var vehicle = Vehicle.register("Fiat", "Uno", nextYear, "Prata", PRICE, PRICE, VehicleOrigin.OWNED);
+
+    assertThat(vehicle.getYear()).isEqualTo(nextYear);
+  }
+
+  @ParameterizedTest
+  @MethodSource("yearsOutOfRange")
+  void rejectsYearOutOfRange(int year) {
+    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", year, "Prata", PRICE, PRICE, VehicleOrigin.OWNED))
         .isInstanceOf(BusinessRuleException.class);
   }
 

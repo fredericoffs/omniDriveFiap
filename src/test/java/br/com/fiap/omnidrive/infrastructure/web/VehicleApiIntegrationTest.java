@@ -48,18 +48,30 @@ class VehicleApiIntegrationTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content(body("Fiat", null))
         .exchange();
-    assertThat(created).hasStatus(HttpStatus.CREATED);
-    assertThat(created).bodyJson().extractingPath("$.status").isEqualTo("RECEIVED");
-    assertThat(created).bodyJson().extractingPath("$.version").isEqualTo(0);
+    assertThat(created)
+        .hasStatus(HttpStatus.CREATED)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": "RECEIVED",
+              "version": 0
+            }
+            """);
     var id = JsonPath.read(created.getResponse().getContentAsString(), "$.id").toString();
 
     var updated = mvc.put().uri("/vehicles/{id}", id)
         .contentType(MediaType.APPLICATION_JSON)
         .content(body("Volkswagen", 0L))
         .exchange();
-    assertThat(updated).hasStatus(HttpStatus.OK);
-    assertThat(updated).bodyJson().extractingPath("$.brand").isEqualTo("Volkswagen");
-    assertThat(updated).bodyJson().extractingPath("$.version").isEqualTo(1);
+    assertThat(updated)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "brand": "Volkswagen",
+              "version": 1
+            }
+            """);
 
     var outdated = mvc.put().uri("/vehicles/{id}", id)
         .contentType(MediaType.APPLICATION_JSON)
@@ -82,9 +94,23 @@ class VehicleApiIntegrationTest {
   void publishesOpenApiDocumentation() {
     var docs = mvc.get().uri("/v3/api-docs").exchange();
 
-    assertThat(docs).hasStatus(HttpStatus.OK);
-    assertThat(docs).bodyJson().extractingPath("$.info.title").isEqualTo("OmniDrive API");
-    assertThat(docs).bodyJson().extractingPath("$.paths['/vehicles'].post.summary").isEqualTo("Cadastrar veículo");
+    assertThat(docs)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "info": {
+                "title": "OmniDrive API"
+              },
+              "paths": {
+                "/vehicles": {
+                  "post": {
+                    "summary": "Cadastrar veículo"
+                  }
+                }
+              }
+            }
+            """);
     assertThat(mvc.get().uri("/swagger-ui/index.html").exchange()).hasStatus(HttpStatus.OK);
   }
 }
