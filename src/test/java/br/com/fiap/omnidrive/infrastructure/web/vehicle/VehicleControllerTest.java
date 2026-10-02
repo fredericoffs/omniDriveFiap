@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
@@ -73,6 +74,9 @@ class VehicleControllerTest {
   private RegisterVehicle registerVehicle;
 
   @MockitoBean
+  private GetVehicle getVehicle;
+
+  @MockitoBean
   private UpdateVehicle updateVehicle;
 
   @MockitoBean
@@ -128,6 +132,7 @@ class VehicleControllerTest {
 
     assertThat(response)
         .hasStatus(HttpStatus.CREATED)
+        .hasHeader("Location", "http://localhost/vehicles/" + VEHICLE_ID)
         .bodyJson()
         .isLenientlyEqualTo("""
             {
@@ -212,6 +217,39 @@ class VehicleControllerTest {
               "detail": "O ano deve estar entre 1900 e 2027"
             }
             """);
+  }
+
+  @Test
+  void getsVehicleById() {
+    when(getVehicle.execute(VEHICLE_ID)).thenReturn(vehicle("40000.50", VehicleStatus.AVAILABLE, 3));
+
+    var response = mvc.get().uri("/vehicles/{id}", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "brand": "Fiat",
+              "salePrice": 40000.50,
+              "status": "AVAILABLE",
+              "version": 3
+            }
+            """);
+  }
+
+  @Test
+  void returnsNotFoundWhenGettingUnknownVehicle() {
+    when(getVehicle.execute(VEHICLE_ID)).thenThrow(new NotFoundException("Veículo não encontrado"));
+
+    var response = mvc.get().uri("/vehicles/{id}", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.NOT_FOUND)
+        .bodyJson()
+        .extractingPath("$.title")
+        .isEqualTo("Recurso não encontrado");
   }
 
   @Test

@@ -3,7 +3,6 @@ package br.com.fiap.omnidrive.infrastructure.web;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
-import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,7 +42,7 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
-  void registersAndUpdatesVehicleRejectingOutdatedVersion() throws Exception {
+  void registersGetsAndUpdatesVehicleRejectingOutdatedVersion() {
     var created = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)
         .content(body("Fiat", null))
@@ -57,9 +56,22 @@ class VehicleApiIntegrationTest {
               "version": 0
             }
             """);
-    var id = JsonPath.read(created.getResponse().getContentAsString(), "$.id").toString();
+    var location = created.getResponse().getHeader("Location");
 
-    var updated = mvc.put().uri("/vehicles/{id}", id)
+    assert location != null;
+    var found = mvc.get().uri(location).exchange();
+    assertThat(found)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "brand": "Fiat",
+              "status": "RECEIVED",
+              "version": 0
+            }
+            """);
+
+    var updated = mvc.put().uri(location)
         .contentType(MediaType.APPLICATION_JSON)
         .content(body("Volkswagen", 0L))
         .exchange();
@@ -73,11 +85,18 @@ class VehicleApiIntegrationTest {
             }
             """);
 
-    var outdated = mvc.put().uri("/vehicles/{id}", id)
+    var outdated = mvc.put().uri(location)
         .contentType(MediaType.APPLICATION_JSON)
         .content(body("Chevrolet", 0L))
         .exchange();
     assertThat(outdated).hasStatus(HttpStatus.CONFLICT);
+
+    var reread = mvc.get().uri(location).exchange();
+    assertThat(reread)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.version")
+        .isEqualTo(1);
   }
 
   @Test
