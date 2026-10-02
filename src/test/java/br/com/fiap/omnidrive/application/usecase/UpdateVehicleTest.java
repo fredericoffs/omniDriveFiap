@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
+import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -31,15 +32,9 @@ class UpdateVehicleTest {
 
   private static final UUID VEHICLE_ID = UUID.randomUUID();
 
-  private static final UpdateVehicleInput INPUT = new UpdateVehicleInput(
-      "Volkswagen",
-      "Gol",
-      2019,
-      "Branco",
-      new BigDecimal("25000"),
-      new BigDecimal("32000"),
-      VehicleOrigin.CONSIGNED
-  );
+  private static final long CURRENT_VERSION = 3;
+
+  private static final UpdateVehicleInput INPUT = input(CURRENT_VERSION);
 
   @Mock
   private VehicleGateway vehicleGateway;
@@ -57,7 +52,20 @@ class UpdateVehicleTest {
         Money.of("40000"),
         VehicleOrigin.OWNED,
         status,
-        0
+        CURRENT_VERSION
+    );
+  }
+
+  private static UpdateVehicleInput input(Long version) {
+    return new UpdateVehicleInput(
+        "Volkswagen",
+        "Gol",
+        2019,
+        "Branco",
+        new BigDecimal("25000"),
+        new BigDecimal("32000"),
+        VehicleOrigin.CONSIGNED,
+        version
     );
   }
 
@@ -101,6 +109,26 @@ class UpdateVehicleTest {
 
     assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, INPUT))
         .isInstanceOf(BusinessRuleException.class);
+    verify(vehicleGateway, never()).save(any());
+  }
+
+  @Test
+  void rejectsUpdateBasedOnOutdatedVersion() {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+
+    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, input(CURRENT_VERSION - 1)))
+        .isInstanceOf(ConcurrentUpdateException.class)
+        .hasMessageContaining(VEHICLE_ID.toString());
+    verify(vehicleGateway, never()).save(any());
+  }
+
+  @Test
+  void requiresVersion() {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+
+    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, input(null)))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("A versão do veículo é obrigatória");
     verify(vehicleGateway, never()).save(any());
   }
 }

@@ -2,6 +2,8 @@ package br.com.fiap.omnidrive.application.usecase;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
+import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 
@@ -11,6 +13,9 @@ import java.util.UUID;
 /**
  * Caso de uso: editar os dados de um veículo. Só é permitido enquanto o veículo está Recebido, Em Preparação ou
  * Disponível; a regra fica em {@link Vehicle#update}.
+ *
+ * <p>O cliente informa a versão que leu. Se o veículo mudou desde então, a edição é recusada, para que uma
+ * alteração feita por outra pessoa não seja sobrescrita sem aviso.
  */
 public class UpdateVehicle {
 
@@ -25,10 +30,9 @@ public class UpdateVehicle {
    *
    * @return o veículo atualizado
    * @throws NotFoundException se não houver veículo com o id informado
-   * @throws br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException se o veículo foi alterado por outra
-   *     operação durante a edição
-   * @throws br.com.fiap.omnidrive.domain.exception.BusinessRuleException se o status não permitir edição ou algum
-   *     dado for inválido
+   * @throws ConcurrentUpdateException se o veículo foi alterado depois que o cliente o leu
+   * @throws BusinessRuleException se a versão não for informada, o status não permitir edição ou algum dado for
+   *     inválido
    */
   public Vehicle execute(
       UUID id,
@@ -38,6 +42,14 @@ public class UpdateVehicle {
     Objects.requireNonNull(input);
     var vehicle = vehicleGateway.findById(id)
         .orElseThrow(() -> new NotFoundException("Veículo não encontrado: " + id));
+    if (input.version() == null) {
+      throw new BusinessRuleException("A versão do veículo é obrigatória");
+    }
+    if (!input.version().equals(vehicle.getVersion())) {
+      throw new ConcurrentUpdateException(
+          "O veículo " + id + " foi alterado por outra operação. Consulte-o novamente e repita a operação"
+      );
+    }
     vehicle.update(
         input.brand(),
         input.model(),

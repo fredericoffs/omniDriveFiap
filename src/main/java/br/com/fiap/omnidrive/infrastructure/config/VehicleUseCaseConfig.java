@@ -1,0 +1,31 @@
+package br.com.fiap.omnidrive.infrastructure.config;
+
+import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
+import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
+import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
+import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Registra os casos de uso de veículo como beans. Os casos de uso são Java puro e não conhecem o Spring; a ligação
+ * com a infraestrutura acontece só aqui.
+ */
+@Configuration(proxyBeanMethods = false)
+public class VehicleUseCaseConfig {
+
+  @Bean
+  RegisterVehicle registerVehicle(VehicleGateway vehicleGateway) {
+    return new RegisterVehicle(vehicleGateway);
+  }
+
+  @Bean
+  UpdateVehicle updateVehicle(VehicleGateway vehicleGateway) {
+    return new UpdateVehicle(vehicleGateway);
+  }
+
+  @Bean
+  ListVehiclesForSale listVehiclesForSale(VehicleGateway vehicleGateway) {
+    return new ListVehiclesForSale(vehicleGateway);
+  }
+}

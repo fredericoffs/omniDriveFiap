@@ -14,6 +14,7 @@ import java.math.BigDecimal;
  * @param purchasePrice valor de entrada
  * @param salePrice     preço de venda anunciado
  * @param origin        origem do veículo
+ * @param version       versão do veículo que o cliente leu antes de editar
  */
 public record UpdateVehicleInput(
     String brand,
@@ -22,6 +23,7 @@ public record UpdateVehicleInput(
     String color,
     BigDecimal purchasePrice,
     BigDecimal salePrice,
-    VehicleOrigin origin
+    VehicleOrigin origin,
+    Long version
 ) {
 }
