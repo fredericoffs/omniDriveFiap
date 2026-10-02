@@ -4,7 +4,6 @@ import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 
-import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
@@ -17,10 +16,6 @@ public class RegisterVehicle {
 
   public RegisterVehicle(VehicleGateway vehicleGateway) {
     this.vehicleGateway = Objects.requireNonNull(vehicleGateway);
-  }
-
-  private static Money toMoney(BigDecimal amount) {
-    return amount == null ? null : new Money(amount);
   }
 
   /**
@@ -36,8 +31,8 @@ public class RegisterVehicle {
         input.model(),
         input.year(),
         input.color(),
-        toMoney(input.purchasePrice()),
-        toMoney(input.salePrice()),
+        Money.ofNullable(input.purchasePrice()),
+        Money.ofNullable(input.salePrice()),
         input.origin()
     );
     vehicleGateway.save(vehicle);

@@ -30,4 +30,12 @@ public record Money(BigDecimal amount) {
   public static Money of(String amount) {
     return new Money(new BigDecimal(amount));
   }
+
+  /**
+   * Cria um valor, ou devolve {@code null} se {@code amount} for nulo. Assim a validação de quem recebe o valor
+   * informa qual campo está faltando.
+   */
+  public static Money ofNullable(BigDecimal amount) {
+    return amount == null ? null : new Money(amount);
+  }
 }

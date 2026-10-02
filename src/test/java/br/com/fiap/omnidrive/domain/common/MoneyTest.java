@@ -46,4 +46,10 @@ class MoneyTest {
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage("O valor é obrigatório");
   }
+
+  @Test
+  void ofNullableKeepsNull() {
+    assertThat(Money.ofNullable(null)).isNull();
+    assertThat(Money.ofNullable(new BigDecimal("10"))).isEqualTo(Money.of("10.00"));
+  }
 }
