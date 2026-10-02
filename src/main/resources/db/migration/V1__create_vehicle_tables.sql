@@ -1,27 +1,29 @@
-CREATE TABLE veiculo (
-    id             UUID           PRIMARY KEY,
-    marca          VARCHAR(60)    NOT NULL,
-    modelo         VARCHAR(60)    NOT NULL,
-    ano            SMALLINT       NOT NULL,
-    cor            VARCHAR(30)    NOT NULL,
-    valor_entrada  NUMERIC(12, 2) NOT NULL CHECK (valor_entrada > 0),
-    preco_venda    NUMERIC(12, 2) NOT NULL CHECK (preco_venda > 0),
-    status         VARCHAR(20)    NOT NULL CHECK (status IN ('RECEBIDO', 'EM_PREPARACAO', 'DISPONIVEL', 'RESERVADO', 'VENDIDO')),
-    origem         VARCHAR(20)    NOT NULL CHECK (origem IN ('PROPRIO', 'CONSIGNADO')),
-    criado_em      TIMESTAMPTZ    NOT NULL,
-    atualizado_em  TIMESTAMPTZ    NOT NULL
+CREATE TABLE vehicle
+(
+    id             UUID PRIMARY KEY,
+    brand          VARCHAR(60)    NOT NULL,
+    model          VARCHAR(60)    NOT NULL,
+    year           SMALLINT       NOT NULL,
+    color          VARCHAR(30)    NOT NULL,
+    purchase_price NUMERIC(12, 2) NOT NULL CHECK (purchase_price > 0),
+    sale_price     NUMERIC(12, 2) NOT NULL CHECK (sale_price > 0),
+    status         VARCHAR(20)    NOT NULL CHECK (status IN ('RECEIVED', 'IN_PREPARATION', 'AVAILABLE', 'RESERVED', 'SOLD')),
+    origin         VARCHAR(20)    NOT NULL CHECK (origin IN ('OWNED', 'CONSIGNED')),
+    created_at     TIMESTAMPTZ    NOT NULL,
+    updated_at     TIMESTAMPTZ    NOT NULL
 );
 
-CREATE INDEX idx_veiculo_status_preco_venda ON veiculo (status, preco_venda);
+CREATE INDEX idx_vehicle_status_sale_price ON vehicle (status, sale_price);
 
-CREATE TABLE historico_status_veiculo (
-    id               UUID         PRIMARY KEY,
-    veiculo_id       UUID         NOT NULL REFERENCES veiculo (id),
-    status_anterior  VARCHAR(20)  CHECK (status_anterior IN ('RECEBIDO', 'EM_PREPARACAO', 'DISPONIVEL', 'RESERVADO', 'VENDIDO')),
-    status_novo      VARCHAR(20)  NOT NULL CHECK (status_novo IN ('RECEBIDO', 'EM_PREPARACAO', 'DISPONIVEL', 'RESERVADO', 'VENDIDO')),
-    motivo           VARCHAR(255),
-    venda_id         UUID,
-    ocorrido_em      TIMESTAMPTZ  NOT NULL
+CREATE TABLE vehicle_status_history
+(
+    id              UUID PRIMARY KEY,
+    vehicle_id      UUID        NOT NULL REFERENCES vehicle (id),
+    previous_status VARCHAR(20) CHECK (previous_status IN ('RECEIVED', 'IN_PREPARATION', 'AVAILABLE', 'RESERVED', 'SOLD')),
+    new_status      VARCHAR(20) NOT NULL CHECK (new_status IN ('RECEIVED', 'IN_PREPARATION', 'AVAILABLE', 'RESERVED', 'SOLD')),
+    reason          VARCHAR(255),
+    sale_id         UUID,
+    occurred_at     TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX idx_historico_status_veiculo_veiculo_id ON historico_status_veiculo (veiculo_id, ocorrido_em);
+CREATE INDEX idx_vehicle_status_history_vehicle_id ON vehicle_status_history (vehicle_id, occurred_at);
