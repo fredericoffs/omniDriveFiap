@@ -35,7 +35,6 @@ public class RegisterVehicle {
         Money.ofNullable(input.salePrice()),
         input.origin()
     );
-    vehicleGateway.save(vehicle);
-    return vehicle;
+    return vehicleGateway.save(vehicle);
   }
 }

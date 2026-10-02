@@ -1,8 +1,10 @@
 package br.com.fiap.omnidrive.infrastructure.persistence;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
+import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,7 +14,8 @@ import java.util.UUID;
 
 /**
  * Implementação do {@link VehicleGateway} com JPA. O veículo e o histórico de status são gravados na mesma
- * transação.
+ * transação, com controle de concorrência otimista pela coluna {@code version}: a gravação é recusada se a versão
+ * do veículo recebido não for a que está no banco.
  */
 @Component
 public class JpaVehicleGateway implements VehicleGateway {
@@ -28,18 +31,30 @@ public class JpaVehicleGateway implements VehicleGateway {
     this.statusHistoryRepository = statusHistoryRepository;
   }
 
+  private static ConcurrentUpdateException concurrentUpdate(Vehicle vehicle) {
+    return new ConcurrentUpdateException(
+        "O veículo " + vehicle.getId() + " foi alterado por outra operação. Consulte-o novamente e repita a operação"
+    );
+  }
+
   @Override
   @Transactional
-  public void save(Vehicle vehicle) {
-    var entity = vehicleRepository.findById(vehicle.getId())
-        .orElseGet(() -> new VehicleEntity(vehicle.getId()));
+  public Vehicle save(Vehicle vehicle) {
+    var entity = vehicle.getVersion() == null
+        ? new VehicleEntity(vehicle.getId())
+        : loadWithSameVersion(vehicle);
     entity.copyFrom(vehicle);
-    vehicleRepository.save(entity);
+    try {
+      entity = vehicleRepository.saveAndFlush(entity);
+    } catch (OptimisticLockingFailureException e) {
+      throw concurrentUpdate(vehicle);
+    }
     statusHistoryRepository.saveAll(
         vehicle.getStatusChanges().stream()
             .map(VehicleStatusHistoryEntity::from)
             .toList()
     );
+    return entity.toDomain();
   }
 
   @Override
@@ -54,5 +69,14 @@ public class JpaVehicleGateway implements VehicleGateway {
     return vehicleRepository.findByStatusOrderBySalePriceAsc(status).stream()
         .map(VehicleEntity::toDomain)
         .toList();
+  }
+
+  private VehicleEntity loadWithSameVersion(Vehicle vehicle) {
+    var entity = vehicleRepository.findById(vehicle.getId())
+        .orElseThrow(() -> concurrentUpdate(vehicle));
+    if (!entity.getVersion().equals(vehicle.getVersion())) {
+      throw concurrentUpdate(vehicle);
+    }
+    return entity;
   }
 }

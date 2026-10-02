@@ -37,7 +37,8 @@ class ListVehiclesForSaleTest {
         Money.of("30000"),
         Money.of(salePrice),
         VehicleOrigin.OWNED,
-        VehicleStatus.AVAILABLE
+        VehicleStatus.AVAILABLE,
+        0
     );
   }
 

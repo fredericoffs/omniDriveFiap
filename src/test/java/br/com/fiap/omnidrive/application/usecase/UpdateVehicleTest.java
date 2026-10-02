@@ -56,7 +56,8 @@ class UpdateVehicleTest {
         Money.of("30000"),
         Money.of("40000"),
         VehicleOrigin.OWNED,
-        status
+        status,
+        0
     );
   }
 
@@ -68,6 +69,7 @@ class UpdateVehicleTest {
   @Test
   void updatesVehicleAndSavesIt() {
     when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     var vehicle = updateVehicle.execute(VEHICLE_ID, INPUT);
 

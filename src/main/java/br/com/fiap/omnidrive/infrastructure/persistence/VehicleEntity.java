@@ -10,6 +10,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -19,7 +20,7 @@ import java.util.UUID;
 
 /**
  * Mapeamento JPA da tabela {@code vehicle}. Converte de e para o {@link Vehicle} do domínio; as datas de criação e
- * atualização são preenchidas pelo Hibernate.
+ * atualização e a versão do controle de concorrência otimista são preenchidas pelo Hibernate.
  */
 @Entity
 @Table(name = "vehicle")
@@ -53,6 +54,9 @@ class VehicleEntity {
   @UpdateTimestamp
   private Instant updatedAt;
 
+  @Version
+  private Long version;
+
   protected VehicleEntity() {
   }
 
@@ -61,7 +65,8 @@ class VehicleEntity {
   }
 
   /**
-   * Copia o estado do veículo do domínio para esta entidade, sem tocar nas datas de criação e atualização.
+   * Copia o estado do veículo do domínio para esta entidade, sem tocar nas datas de criação e atualização nem na
+   * versão.
    */
   void copyFrom(Vehicle vehicle) {
     brand = vehicle.getBrand();
@@ -74,6 +79,10 @@ class VehicleEntity {
     origin = vehicle.getOrigin();
   }
 
+  Long getVersion() {
+    return version;
+  }
+
   Vehicle toDomain() {
     return Vehicle.restore(
         id,
@@ -84,7 +93,8 @@ class VehicleEntity {
         new Money(purchasePrice),
         new Money(salePrice),
         origin,
-        status
+        status,
+        version
     );
   }
 }

@@ -50,7 +50,7 @@ class VehicleTest {
 
   private static Vehicle restore(VehicleStatus status) {
     return Vehicle.restore(UUID.randomUUID(), "Fiat", "Uno", 2020, "Prata", Money.of("30000"), Money.of("40000"),
-        VehicleOrigin.OWNED, status);
+        VehicleOrigin.OWNED, status, 0);
   }
 
   @Test
@@ -58,6 +58,7 @@ class VehicleTest {
     var vehicle = register();
 
     assertThat(vehicle.getId()).isNotNull();
+    assertThat(vehicle.getVersion()).isNull();
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
     assertThat(vehicle.getStatusChanges())
         .singleElement()

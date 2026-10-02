@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
@@ -48,6 +49,8 @@ class RegisterVehicleTest {
 
   @Test
   void registersVehicleAsReceivedAndSavesIt() {
+    when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
     var vehicle = registerVehicle.execute(input(new BigDecimal("30000"), new BigDecimal("40000.5")));
 
     assertThat(vehicle.getId()).isNotNull();

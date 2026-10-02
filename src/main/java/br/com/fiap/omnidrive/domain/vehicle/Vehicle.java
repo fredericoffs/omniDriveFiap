@@ -16,6 +16,9 @@ import java.util.UUID;
  * <p>O cadastro é único: um veículo vendido pode voltar à loja pela reentrada e ser vendido de novo. Toda mudança
  * de status gera um {@link VehicleStatusHistory}, disponível em {@link #getStatusChanges()} até ser persistido.
  *
+ * <p>A versão ({@link #getVersion()}) serve ao controle de concorrência otimista: a persistência recusa a gravação
+ * se o veículo foi alterado por outra operação depois de lido.
+ *
  * <p>Transições permitidas:
  * <ul>
  *     <li>Recebido → Em Preparação ({@link #startPreparation()})</li>
@@ -32,6 +35,7 @@ public class Vehicle {
   private static final int MIN_YEAR = 1900;
 
   private final UUID id;
+  private final Long version;
   private final List<VehicleStatusHistory> statusChanges = new ArrayList<>();
   private String brand;
   private String model;
@@ -42,9 +46,14 @@ public class Vehicle {
   private VehicleOrigin origin;
   private VehicleStatus status;
 
-  private Vehicle(UUID id, VehicleStatus status) {
+  private Vehicle(
+      UUID id,
+      VehicleStatus status,
+      Long version
+  ) {
     this.id = Objects.requireNonNull(id);
     this.status = status;
+    this.version = version;
   }
 
   /**
@@ -62,7 +71,7 @@ public class Vehicle {
       Money salePrice,
       VehicleOrigin origin
   ) {
-    var vehicle = new Vehicle(UUID.randomUUID(), null);
+    var vehicle = new Vehicle(UUID.randomUUID(), null, null);
     vehicle.fill(brand, model, year, color, purchasePrice, salePrice, origin);
     vehicle.changeStatus(VehicleStatus.RECEIVED, "Cadastro do veículo", null);
     return vehicle;
@@ -70,6 +79,8 @@ public class Vehicle {
 
   /**
    * Reconstrói um veículo já existente, sem gerar histórico. Uso exclusivo da persistência.
+   *
+   * @param version versão lida do banco, usada no controle de concorrência otimista
    */
   public static Vehicle restore(
       UUID id,
@@ -80,9 +91,10 @@ public class Vehicle {
       Money purchasePrice,
       Money salePrice,
       VehicleOrigin origin,
-      VehicleStatus status
+      VehicleStatus status,
+      long version
   ) {
-    var vehicle = new Vehicle(id, Objects.requireNonNull(status));
+    var vehicle = new Vehicle(id, Objects.requireNonNull(status), version);
     vehicle.fill(brand, model, year, color, purchasePrice, salePrice, origin);
     return vehicle;
   }
@@ -195,6 +207,13 @@ public class Vehicle {
 
   public UUID getId() {
     return id;
+  }
+
+  /**
+   * Versão do veículo no banco, ou {@code null} se ele ainda não foi persistido.
+   */
+  public Long getVersion() {
+    return version;
   }
 
   public String getBrand() {

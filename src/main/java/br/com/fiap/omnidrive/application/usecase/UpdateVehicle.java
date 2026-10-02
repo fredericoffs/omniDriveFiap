@@ -25,6 +25,8 @@ public class UpdateVehicle {
    *
    * @return o veículo atualizado
    * @throws NotFoundException se não houver veículo com o id informado
+   * @throws br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException se o veículo foi alterado por outra
+   *     operação durante a edição
    * @throws br.com.fiap.omnidrive.domain.exception.BusinessRuleException se o status não permitir edição ou algum
    *     dado for inválido
    */
@@ -45,7 +47,6 @@ public class UpdateVehicle {
         Money.ofNullable(input.salePrice()),
         input.origin()
     );
-    vehicleGateway.save(vehicle);
-    return vehicle;
+    return vehicleGateway.save(vehicle);
   }
 }

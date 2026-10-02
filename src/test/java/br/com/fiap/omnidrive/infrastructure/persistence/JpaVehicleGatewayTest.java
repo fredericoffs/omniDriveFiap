@@ -1,9 +1,11 @@
 package br.com.fiap.omnidrive.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
@@ -114,6 +116,47 @@ class JpaVehicleGatewayTest {
     assertThat(vehicles)
         .extracting(Vehicle::getId)
         .containsExactly(cheap.getId(), middle.getId(), expensive.getId());
+  }
+
+  @Test
+  void incrementsVersionOnEachChange() {
+    var saved = gateway.save(register("40000"));
+    assertThat(saved.getVersion()).isZero();
+    assertThat(saved.getStatusChanges()).isEmpty();
+
+    saved.startPreparation();
+    var updated = gateway.save(saved);
+
+    assertThat(updated.getVersion()).isEqualTo(1);
+  }
+
+  @Test
+  void rejectsSaveBasedOnOutdatedVersion() {
+    var vehicle = register("40000");
+    gateway.save(vehicle);
+    flushAndClear();
+    var firstRead = gateway.findById(vehicle.getId()).orElseThrow();
+    var secondRead = gateway.findById(vehicle.getId()).orElseThrow();
+
+    firstRead.startPreparation();
+    gateway.save(firstRead);
+    secondRead.update(
+        "Volkswagen",
+        "Gol",
+        2019,
+        "Branco",
+        Money.of("25000"),
+        Money.of("32000"),
+        VehicleOrigin.CONSIGNED
+    );
+
+    assertThatThrownBy(() -> gateway.save(secondRead))
+        .isInstanceOf(ConcurrentUpdateException.class)
+        .hasMessageContaining(vehicle.getId().toString());
+    flushAndClear();
+    var current = gateway.findById(vehicle.getId()).orElseThrow();
+    assertThat(current.getStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
+    assertThat(current.getBrand()).isEqualTo("Fiat");
   }
 
   @Test
