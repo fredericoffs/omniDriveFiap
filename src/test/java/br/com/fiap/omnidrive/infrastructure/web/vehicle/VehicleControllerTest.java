@@ -114,6 +114,7 @@ class VehicleControllerTest {
             VehicleOrigin.OWNED
         ),
         status,
+        null,
         version
     );
   }

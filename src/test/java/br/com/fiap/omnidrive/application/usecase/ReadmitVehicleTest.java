@@ -33,6 +33,8 @@ class ReadmitVehicleTest {
 
   private static final UUID VEHICLE_ID = UUID.randomUUID();
 
+  private static final UUID SALE_ID = UUID.randomUUID();
+
   private static final ReadmitVehicleInput INPUT = new ReadmitVehicleInput(new BigDecimal("35000"));
 
   @Mock
@@ -40,7 +42,10 @@ class ReadmitVehicleTest {
 
   private ReadmitVehicle readmitVehicle;
 
-  private static Vehicle vehicle(VehicleStatus status) {
+  private static Vehicle vehicle(
+      VehicleStatus status,
+      UUID currentSaleId
+  ) {
     return Vehicle.restore(
         VEHICLE_ID,
         new VehicleDetails(
@@ -53,6 +58,7 @@ class ReadmitVehicleTest {
             VehicleOrigin.OWNED
         ),
         status,
+        currentSaleId,
         4
     );
   }
@@ -64,7 +70,7 @@ class ReadmitVehicleTest {
 
   @Test
   void readmitsSoldVehicleWithNewPurchasePriceAndSavesIt() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.SOLD)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.SOLD, SALE_ID)));
     when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     var vehicle = readmitVehicle.execute(VEHICLE_ID, INPUT);
@@ -94,7 +100,7 @@ class ReadmitVehicleTest {
 
   @Test
   void doesNotSaveWhenVehicleIsNotSold() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE, null)));
 
     assertThatThrownBy(() -> readmitVehicle.execute(VEHICLE_ID, INPUT))
         .isInstanceOf(InvalidStatusTransitionException.class);
@@ -103,7 +109,7 @@ class ReadmitVehicleTest {
 
   @Test
   void requiresNewPurchasePrice() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.SOLD)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.SOLD, SALE_ID)));
     var inputWithoutPrice = new ReadmitVehicleInput(null);
 
     assertThatThrownBy(() -> readmitVehicle.execute(VEHICLE_ID, inputWithoutPrice))

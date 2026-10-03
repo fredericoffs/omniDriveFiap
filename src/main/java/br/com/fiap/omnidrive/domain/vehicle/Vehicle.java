@@ -15,6 +15,10 @@ import java.util.UUID;
  * <p>O cadastro é único: um veículo vendido pode voltar à loja pela reentrada e ser vendido de novo. Toda mudança
  * de status gera um {@link VehicleStatusHistory}, disponível em {@link #getStatusChanges()} até ser persistido.
  *
+ * <p>A venda atual ({@link #getCurrentSaleId()}) é a venda que controla o veículo enquanto ele está Reservado ou
+ * Vendido. As transições ligadas a uma venda só são aceitas para ela, e o pagamento de uma venda antiga não muda mais o
+ * veículo.
+ *
  * <p>A versão ({@link #getVersion()}) serve ao controle de concorrência otimista: a persistência recusa a gravação
  * se o veículo foi alterado por outra operação depois de lido.
  *
@@ -31,24 +35,24 @@ import java.util.UUID;
  */
 public class Vehicle {
 
-  // TODO: guardar a venda atual (currentSaleId), conferi-la em confirmSale, releaseReservation e reverseSale e
-  //  zerá-la em releaseReservation, reverseSale e readmit (semana 3, junto com a Sale).
-
   private final UUID id;
   private final Long version;
   private final List<VehicleStatusHistory> statusChanges = new ArrayList<>();
   private VehicleDetails details;
   private VehicleStatus status;
+  private UUID currentSaleId;
 
   private Vehicle(
       UUID id,
       VehicleDetails details,
       VehicleStatus status,
+      UUID currentSaleId,
       Long version
   ) {
     this.id = Objects.requireNonNull(id);
     this.details = Objects.requireNonNull(details);
     this.status = status;
+    this.currentSaleId = currentSaleId;
     this.version = version;
   }
 
@@ -56,7 +60,7 @@ public class Vehicle {
    * Cadastra um veículo que chegou à loja. Ele entra como Recebido.
    */
   public static Vehicle register(VehicleDetails details) {
-    var vehicle = new Vehicle(UUID.randomUUID(), details, null, null);
+    var vehicle = new Vehicle(UUID.randomUUID(), details, null, null, null);
     vehicle.changeStatus(VehicleStatus.RECEIVED, "Cadastro do veículo", null);
     return vehicle;
   }
@@ -64,15 +68,21 @@ public class Vehicle {
   /**
    * Reconstrói um veículo já existente, sem gerar histórico. Uso exclusivo da persistência.
    *
-   * @param version versão lida do banco, usada no controle de concorrência otimista
+   * @param currentSaleId venda atual, obrigatória em Reservado e Vendido e ausente nos demais status
+   * @param version       versão lida do banco, usada no controle de concorrência otimista
+   * @throws IllegalArgumentException se a venda atual não combinar com o status
    */
   public static Vehicle restore(
       UUID id,
       VehicleDetails details,
       VehicleStatus status,
+      UUID currentSaleId,
       long version
   ) {
-    return new Vehicle(id, details, Objects.requireNonNull(status), version);
+    if (Objects.requireNonNull(status).isLinkedToSale() != (currentSaleId != null)) {
+      throw new IllegalArgumentException("Venda atual " + currentSaleId + " incompatível com o status " + status);
+    }
+    return new Vehicle(id, details, status, currentSaleId, version);
   }
 
   /**
@@ -102,38 +112,50 @@ public class Vehicle {
   }
 
   /**
-   * Disponível → Reservado, quando uma venda é criada.
+   * Disponível → Reservado, quando uma venda é criada. A venda passa a ser a venda atual.
    */
   public void reserve(UUID saleId) {
     transition(VehicleStatus.AVAILABLE, VehicleStatus.RESERVED, "Venda criada", Objects.requireNonNull(saleId));
+    currentSaleId = saleId;
   }
 
   /**
-   * Reservado → Vendido, quando o pagamento é confirmado.
+   * Reservado → Vendido, quando o pagamento da venda atual é confirmado.
+   *
+   * @throws BusinessRuleException se {@code saleId} não for a venda atual
    */
   public void confirmSale(UUID saleId) {
-    transition(VehicleStatus.RESERVED, VehicleStatus.SOLD, "Pagamento confirmado",
-        Objects.requireNonNull(saleId));
+    requireCurrentSale(saleId);
+    transition(VehicleStatus.RESERVED, VehicleStatus.SOLD, "Pagamento confirmado", saleId);
   }
 
   /**
-   * Reservado → Disponível, quando o pagamento é recusado ou cancelado antes de ser pago.
+   * Reservado → Disponível, quando o pagamento da venda atual é recusado ou cancelado antes de ser pago. O veículo
+   * fica sem venda atual.
+   *
+   * @throws BusinessRuleException se {@code saleId} não for a venda atual
    */
   public void releaseReservation(UUID saleId) {
-    transition(VehicleStatus.RESERVED, VehicleStatus.AVAILABLE, "Pagamento recusado ou cancelado",
-        Objects.requireNonNull(saleId));
+    requireCurrentSale(saleId);
+    transition(VehicleStatus.RESERVED, VehicleStatus.AVAILABLE, "Pagamento recusado ou cancelado", saleId);
+    currentSaleId = null;
   }
 
   /**
-   * Vendido → Disponível, quando o pagamento é cancelado depois de pago (estorno).
+   * Vendido → Disponível, quando o pagamento da venda atual é cancelado depois de pago (estorno). O veículo fica sem
+   * venda atual.
+   *
+   * @throws BusinessRuleException se {@code saleId} não for a venda atual
    */
   public void reverseSale(UUID saleId) {
-    transition(VehicleStatus.SOLD, VehicleStatus.AVAILABLE, "Pagamento estornado",
-        Objects.requireNonNull(saleId));
+    requireCurrentSale(saleId);
+    transition(VehicleStatus.SOLD, VehicleStatus.AVAILABLE, "Pagamento estornado", saleId);
+    currentSaleId = null;
   }
 
   /**
-   * Vendido → Recebido: o veículo volta à loja com um novo valor de entrada. O valor anterior fica registrado no motivo do histórico.
+   * Vendido → Recebido: o veículo volta à loja com um novo valor de entrada e fica sem venda atual. O valor anterior
+   * fica registrado no motivo do histórico.
    */
   public void readmit(Money newPurchasePrice) {
     requireStatus(VehicleStatus.SOLD, VehicleStatus.RECEIVED);
@@ -142,6 +164,14 @@ public class Vehicle {
     changeStatus(VehicleStatus.RECEIVED,
         "Reentrada na loja; valor de entrada anterior: " + previousPurchasePrice.amount().toPlainString(),
         null);
+    currentSaleId = null;
+  }
+
+  /**
+   * Indica se {@code saleId} é a venda atual. O pagamento de uma venda que não é a atual não muda o veículo.
+   */
+  public boolean isCurrentSale(UUID saleId) {
+    return currentSaleId != null && currentSaleId.equals(saleId);
   }
 
   /**
@@ -198,6 +228,13 @@ public class Vehicle {
     return status;
   }
 
+  /**
+   * Venda que controla o veículo em Reservado ou Vendido, ou {@code null} nos demais status.
+   */
+  public UUID getCurrentSaleId() {
+    return currentSaleId;
+  }
+
   private void transition(
       VehicleStatus expected,
       VehicleStatus next,
@@ -206,6 +243,12 @@ public class Vehicle {
   ) {
     requireStatus(expected, next);
     changeStatus(next, reason, saleId);
+  }
+
+  private void requireCurrentSale(UUID saleId) {
+    if (status.isLinkedToSale() && !isCurrentSale(Objects.requireNonNull(saleId))) {
+      throw new BusinessRuleException("A venda " + saleId + " não é a venda atual do veículo");
+    }
   }
 
   private void requireStatus(

@@ -48,6 +48,8 @@ class VehicleEntity {
   @Enumerated(EnumType.STRING)
   private VehicleOrigin origin;
 
+  private UUID currentSaleId;
+
   @CreationTimestamp
   @Column(updatable = false)
   private Instant createdAt;
@@ -78,6 +80,7 @@ class VehicleEntity {
     salePrice = vehicle.getSalePrice().amount();
     status = vehicle.getStatus();
     origin = vehicle.getOrigin();
+    currentSaleId = vehicle.getCurrentSaleId();
   }
 
   Long getVersion() {
@@ -98,6 +101,7 @@ class VehicleEntity {
         id,
         details,
         status,
+        currentSaleId,
         version
     );
   }

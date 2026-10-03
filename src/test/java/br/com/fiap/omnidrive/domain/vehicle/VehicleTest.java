@@ -25,6 +25,8 @@ class VehicleTest {
 
   private static final UUID SALE_ID = UUID.randomUUID();
 
+  private static final UUID OTHER_SALE_ID = UUID.randomUUID();
+
   private static final Money NEW_PURCHASE_PRICE = Money.of("35000");
 
   private static final VehicleDetails DETAILS = new VehicleDetails(
@@ -46,6 +48,14 @@ class VehicleTest {
       Money.of("32000"),
       VehicleOrigin.CONSIGNED
   );
+
+  static Stream<Arguments> saleTransitions() {
+    return Stream.of(
+        Arguments.of("confirmSale", VehicleStatus.RESERVED, (Consumer<Vehicle>) v -> v.confirmSale(OTHER_SALE_ID)),
+        Arguments.of("releaseReservation", VehicleStatus.RESERVED,
+            (Consumer<Vehicle>) v -> v.releaseReservation(OTHER_SALE_ID)),
+        Arguments.of("reverseSale", VehicleStatus.SOLD, (Consumer<Vehicle>) v -> v.reverseSale(OTHER_SALE_ID)));
+  }
 
   static Stream<Arguments> invalidTransitions() {
     return Stream.of(
@@ -74,6 +84,7 @@ class VehicleTest {
         UUID.randomUUID(),
         DETAILS,
         status,
+        status.isLinkedToSale() ? SALE_ID : null,
         0
     );
   }
@@ -107,6 +118,7 @@ class VehicleTest {
     vehicle.readmit(Money.of("35000"));
 
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
+    assertThat(vehicle.getCurrentSaleId()).isNull();
     assertThat(vehicle.getPurchasePrice()).isEqualTo(Money.of("35000"));
     assertThat(vehicle.getStatusChanges())
         .extracting(VehicleStatusHistory::previousStatus, VehicleStatusHistory::newStatus,
@@ -130,12 +142,34 @@ class VehicleTest {
   }
 
   @Test
+  void reservationSetsCurrentSale() {
+    var vehicle = restore(VehicleStatus.AVAILABLE);
+
+    vehicle.reserve(SALE_ID);
+
+    assertThat(vehicle.getCurrentSaleId()).isEqualTo(SALE_ID);
+    assertThat(vehicle.isCurrentSale(SALE_ID)).isTrue();
+    assertThat(vehicle.isCurrentSale(OTHER_SALE_ID)).isFalse();
+  }
+
+  @Test
+  void confirmingSaleKeepsCurrentSale() {
+    var vehicle = restore(VehicleStatus.RESERVED);
+
+    vehicle.confirmSale(SALE_ID);
+
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.SOLD);
+    assertThat(vehicle.getCurrentSaleId()).isEqualTo(SALE_ID);
+  }
+
+  @Test
   void releasingReservationReturnsToAvailable() {
     var vehicle = restore(VehicleStatus.RESERVED);
 
     vehicle.releaseReservation(SALE_ID);
 
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
+    assertThat(vehicle.getCurrentSaleId()).isNull();
     assertThat(vehicle.getStatusChanges().getLast().saleId()).isEqualTo(SALE_ID);
   }
 
@@ -146,7 +180,43 @@ class VehicleTest {
     vehicle.reverseSale(SALE_ID);
 
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
+    assertThat(vehicle.getCurrentSaleId()).isNull();
     assertThat(vehicle.getStatusChanges().getLast().saleId()).isEqualTo(SALE_ID);
+  }
+
+  @ParameterizedTest(name = "{0} from {1}")
+  @MethodSource("saleTransitions")
+  void rejectsSaleThatIsNotCurrent(
+      String transition,
+      VehicleStatus status,
+      Consumer<Vehicle> action
+  ) {
+    var vehicle = restore(status);
+
+    assertThatThrownBy(() -> action.accept(vehicle))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("A venda " + OTHER_SALE_ID + " não é a venda atual do veículo");
+    assertThat(vehicle.getStatus()).isEqualTo(status);
+    assertThat(vehicle.getCurrentSaleId()).isEqualTo(SALE_ID);
+    assertThat(vehicle.getStatusChanges()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"RESERVED", "SOLD"})
+  void restoreRequiresCurrentSaleWhenLinkedToSale(VehicleStatus status) {
+    var id = UUID.randomUUID();
+
+    assertThatThrownBy(() -> Vehicle.restore(id, DETAILS, status, null, 0))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"RECEIVED", "IN_PREPARATION", "AVAILABLE"})
+  void restoreRejectsCurrentSaleWhenNotLinkedToSale(VehicleStatus status) {
+    var id = UUID.randomUUID();
+
+    assertThatThrownBy(() -> Vehicle.restore(id, DETAILS, status, SALE_ID, 0))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

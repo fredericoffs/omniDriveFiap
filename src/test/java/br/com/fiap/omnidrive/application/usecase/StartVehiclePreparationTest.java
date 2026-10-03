@@ -49,6 +49,7 @@ class StartVehiclePreparationTest {
             VehicleOrigin.OWNED
         ),
         status,
+        null,
         1
     );
   }

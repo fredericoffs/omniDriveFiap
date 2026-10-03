@@ -42,4 +42,11 @@ public enum VehicleStatus {
   public boolean isEditable() {
     return editable;
   }
+
+  /**
+   * Indica se o veículo está ligado a uma venda atual neste status (Reservado ou Vendido).
+   */
+  public boolean isLinkedToSale() {
+    return this == RESERVED || this == SOLD;
+  }
 }

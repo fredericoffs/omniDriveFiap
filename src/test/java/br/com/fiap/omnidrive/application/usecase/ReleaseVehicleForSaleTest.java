@@ -49,6 +49,7 @@ class ReleaseVehicleForSaleTest {
             VehicleOrigin.OWNED
         ),
         status,
+        null,
         1
     );
   }

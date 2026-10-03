@@ -51,6 +51,7 @@ class GetVehicleTest {
             VehicleOrigin.OWNED
         ),
         VehicleStatus.AVAILABLE,
+        null,
         2
     );
     when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle));

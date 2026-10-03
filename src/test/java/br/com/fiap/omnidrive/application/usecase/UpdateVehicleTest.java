@@ -33,6 +33,8 @@ class UpdateVehicleTest {
 
   private static final UUID VEHICLE_ID = UUID.randomUUID();
 
+  private static final UUID SALE_ID = UUID.randomUUID();
+
   private static final long CURRENT_VERSION = 3;
 
   private static final UpdateVehicleInput INPUT = input(CURRENT_VERSION);
@@ -42,7 +44,10 @@ class UpdateVehicleTest {
 
   private UpdateVehicle updateVehicle;
 
-  private static Vehicle vehicle(VehicleStatus status) {
+  private static Vehicle vehicle(
+      VehicleStatus status,
+      UUID currentSaleId
+  ) {
     return Vehicle.restore(
         VEHICLE_ID,
         new VehicleDetails(
@@ -55,6 +60,7 @@ class UpdateVehicleTest {
             VehicleOrigin.OWNED
         ),
         status,
+        currentSaleId,
         CURRENT_VERSION
     );
   }
@@ -79,7 +85,7 @@ class UpdateVehicleTest {
 
   @Test
   void updatesVehicleAndSavesIt() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE, null)));
     when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     var vehicle = updateVehicle.execute(VEHICLE_ID, INPUT);
@@ -108,7 +114,7 @@ class UpdateVehicleTest {
 
   @Test
   void doesNotSaveWhenStatusDoesNotAllowUpdate() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.RESERVED)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.RESERVED, SALE_ID)));
 
     assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, INPUT))
         .isInstanceOf(BusinessRuleException.class);
@@ -117,7 +123,7 @@ class UpdateVehicleTest {
 
   @Test
   void rejectsUpdateBasedOnOutdatedVersion() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE, null)));
 
     var outdatedInput = input(CURRENT_VERSION - 1);
 
@@ -129,7 +135,7 @@ class UpdateVehicleTest {
 
   @Test
   void requiresVersion() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE, null)));
 
     var inputWithoutVersion = input(null);
 

@@ -41,6 +41,7 @@ class ListVehiclesForSaleTest {
             VehicleOrigin.OWNED
         ),
         VehicleStatus.AVAILABLE,
+        null,
         0
     );
   }

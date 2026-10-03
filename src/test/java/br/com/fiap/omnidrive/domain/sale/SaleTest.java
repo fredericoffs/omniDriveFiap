@@ -36,6 +36,7 @@ class SaleTest {
           VehicleOrigin.OWNED
       ),
       VehicleStatus.AVAILABLE,
+      null,
       0
   );
 

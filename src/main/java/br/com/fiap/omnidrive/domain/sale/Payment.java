@@ -121,8 +121,7 @@ public class Payment {
         case DECLINED -> throw invalid(result);
       };
       case DECLINED -> requireRepetition(result, PaymentResult.DECLINED);
-      case CANCELED -> requireRepetition(result, PaymentResult.CANCELED);
-      case REFUNDED -> requireRepetition(result, PaymentResult.CANCELED);
+      case CANCELED, REFUNDED -> requireRepetition(result, PaymentResult.CANCELED);
     };
   }
 

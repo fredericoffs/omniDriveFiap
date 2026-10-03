@@ -170,6 +170,7 @@ class JpaVehicleGatewayTest {
     flushAndClear();
 
     var sold = gateway.findById(vehicle.getId()).orElseThrow();
+    assertThat(sold.getCurrentSaleId()).isEqualTo(saleId);
     sold.readmit(Money.of("35000"));
     gateway.save(sold);
     flushAndClear();
@@ -177,6 +178,7 @@ class JpaVehicleGatewayTest {
     var readmitted = gateway.findById(vehicle.getId()).orElseThrow();
     assertThat(readmitted.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
     assertThat(readmitted.getPurchasePrice()).isEqualTo(Money.of("35000"));
+    assertThat(readmitted.getCurrentSaleId()).isNull();
     assertThat(statusHistory(vehicle.getId()))
         .containsExactlyInAnyOrder(
             VehicleStatus.RECEIVED,
