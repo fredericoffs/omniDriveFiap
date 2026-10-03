@@ -161,6 +161,34 @@ class JpaVehicleGatewayTest {
   }
 
   @Test
+  void savesReadmissionOfSoldVehicle() {
+    var saleId = UUID.randomUUID();
+    var vehicle = available("40000");
+    vehicle.reserve(saleId);
+    vehicle.confirmSale(saleId);
+    gateway.save(vehicle);
+    flushAndClear();
+
+    var sold = gateway.findById(vehicle.getId()).orElseThrow();
+    sold.readmit(Money.of("35000"));
+    gateway.save(sold);
+    flushAndClear();
+
+    var readmitted = gateway.findById(vehicle.getId()).orElseThrow();
+    assertThat(readmitted.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
+    assertThat(readmitted.getPurchasePrice()).isEqualTo(Money.of("35000"));
+    assertThat(statusHistory(vehicle.getId()))
+        .containsExactlyInAnyOrder(
+            VehicleStatus.RECEIVED,
+            VehicleStatus.IN_PREPARATION,
+            VehicleStatus.AVAILABLE,
+            VehicleStatus.RESERVED,
+            VehicleStatus.SOLD,
+            VehicleStatus.RECEIVED
+        );
+  }
+
+  @Test
   void returnsEmptyWhenVehicleDoesNotExist() {
     assertThat(gateway.findById(UUID.randomUUID())).isEmpty();
   }

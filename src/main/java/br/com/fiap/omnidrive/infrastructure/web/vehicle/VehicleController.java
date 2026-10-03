@@ -2,6 +2,7 @@ package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
+import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
 import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
@@ -28,15 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * Endpoints de veículos: cadastro, consulta, edição, preparação, liberação para venda e listagem dos veículos à
- * venda.
+ * Endpoints de veículos: cadastro, consulta, edição, preparação, liberação para venda, reentrada e listagem dos
+ * veículos à venda.
  */
-@Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação e listagem de veículos")
+@Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação, reentrada e listagem de veículos")
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleController {
 
-  // TODO: POST /vehicles/{id}/readmission (Vendido → Recebido, com novo valor de entrada).
   // TODO: GET /vehicles/sold, ordenado pelo valor da venda (semana 3, junto com Sale).
 
   private final RegisterVehicle registerVehicle;
@@ -44,6 +44,7 @@ public class VehicleController {
   private final UpdateVehicle updateVehicle;
   private final StartVehiclePreparation startVehiclePreparation;
   private final ReleaseVehicleForSale releaseVehicleForSale;
+  private final ReadmitVehicle readmitVehicle;
   private final ListVehiclesForSale listVehiclesForSale;
 
   VehicleController(
@@ -52,6 +53,7 @@ public class VehicleController {
       UpdateVehicle updateVehicle,
       StartVehiclePreparation startVehiclePreparation,
       ReleaseVehicleForSale releaseVehicleForSale,
+      ReadmitVehicle readmitVehicle,
       ListVehiclesForSale listVehiclesForSale
   ) {
     this.registerVehicle = registerVehicle;
@@ -59,6 +61,7 @@ public class VehicleController {
     this.updateVehicle = updateVehicle;
     this.startVehiclePreparation = startVehiclePreparation;
     this.releaseVehicleForSale = releaseVehicleForSale;
+    this.readmitVehicle = readmitVehicle;
     this.listVehiclesForSale = listVehiclesForSale;
   }
 
@@ -199,6 +202,41 @@ public class VehicleController {
   @PostMapping("/{id}/release")
   VehicleResponse release(@Parameter(description = "Identificador do veículo") @PathVariable UUID id) {
     return VehicleResponse.from(releaseVehicleForSale.execute(id));
+  }
+
+  @Operation(
+      summary = "Registrar reentrada",
+      description = """
+          Registra a volta à loja de um veículo com status SOLD (vendido), com um novo valor de entrada. Ele passa a \
+          RECEIVED e segue de novo pela preparação e pela liberação. O valor de entrada anterior fica no histórico."""
+  )
+  @ApiResponse(responseCode = "200", description = "Veículo recebido de volta")
+  @ApiResponse(
+      responseCode = "400",
+      description = "Corpo da requisição inválido ou valor de entrada ausente",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Veículo não encontrado",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "O veículo foi alterado por outra operação durante a mudança de status",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "422",
+      description = "O veículo não está com status SOLD",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @PostMapping("/{id}/readmission")
+  VehicleResponse readmit(
+      @Parameter(description = "Identificador do veículo") @PathVariable UUID id,
+      @Valid @RequestBody ReadmitVehicleRequest request
+  ) {
+    return VehicleResponse.from(readmitVehicle.execute(id, request.toInput()));
   }
 
   @Operation(

@@ -139,6 +139,31 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void rejectsReadmissionOfVehicleThatWasNotSold() {
+    var location = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("Peugeot", null))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+
+    var readmitted = mvc.post().uri(location + "/readmission")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+            {
+              "purchasePrice": 35000
+            }
+            """)
+        .exchange();
+
+    assertThat(readmitted)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .extractingPath("$.title")
+        .isEqualTo("Regra de negócio violada");
+  }
+
+  @Test
   void returnsNotFoundForUnknownVehicle() {
     var response = mvc.put().uri("/vehicles/{id}", "6b1f7a4e-3c1d-4a8e-9a4f-2f1d1c0b9e7a")
         .contentType(MediaType.APPLICATION_JSON)

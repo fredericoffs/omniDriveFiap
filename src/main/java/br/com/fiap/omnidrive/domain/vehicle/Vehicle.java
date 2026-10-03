@@ -31,6 +31,9 @@ import java.util.UUID;
  */
 public class Vehicle {
 
+  // TODO: guardar a venda atual (currentSaleId), conferi-la em confirmSale, releaseReservation e reverseSale e
+  //  zerá-la em releaseReservation, reverseSale e readmit (semana 3, junto com a Sale).
+
   private final UUID id;
   private final Long version;
   private final List<VehicleStatusHistory> statusChanges = new ArrayList<>();

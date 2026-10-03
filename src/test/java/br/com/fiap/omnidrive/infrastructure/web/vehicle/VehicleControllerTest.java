@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
+import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
+import br.com.fiap.omnidrive.application.usecase.ReadmitVehicleInput;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
 import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
@@ -88,6 +90,9 @@ class VehicleControllerTest {
 
   @MockitoBean
   private ReleaseVehicleForSale releaseVehicleForSale;
+
+  @MockitoBean
+  private ReadmitVehicle readmitVehicle;
 
   @MockitoBean
   private ListVehiclesForSale listVehiclesForSale;
@@ -401,6 +406,46 @@ class VehicleControllerTest {
               "detail": "Transição inválida de RECEIVED para AVAILABLE"
             }
             """);
+  }
+
+  @Test
+  void readmitsVehicleSendingNewPurchasePriceToUseCase() {
+    when(readmitVehicle.execute(eq(VEHICLE_ID), any())).thenReturn(vehicle("40000", VehicleStatus.RECEIVED, 5));
+
+    var response = mvc.post().uri("/vehicles/{id}/readmission", VEHICLE_ID)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+            {
+              "purchasePrice": 35000.00
+            }
+            """)
+        .exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": "RECEIVED",
+              "version": 5
+            }
+            """);
+    verify(readmitVehicle).execute(VEHICLE_ID, new ReadmitVehicleInput(new BigDecimal("35000.00")));
+  }
+
+  @Test
+  void requiresPurchasePriceOnReadmission() {
+    var response = mvc.post().uri("/vehicles/{id}/readmission", VEHICLE_ID)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{}")
+        .exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .extractingPath("$.errors.purchasePrice")
+        .isEqualTo("O valor de entrada é obrigatório");
+    verifyNoInteractions(readmitVehicle);
   }
 
   @Test

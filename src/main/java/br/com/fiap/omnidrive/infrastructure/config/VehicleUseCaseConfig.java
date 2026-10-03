@@ -3,6 +3,7 @@ package br.com.fiap.omnidrive.infrastructure.config;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
+import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
 import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
@@ -40,6 +41,11 @@ public class VehicleUseCaseConfig {
   @Bean
   ReleaseVehicleForSale releaseVehicleForSale(VehicleGateway vehicleGateway) {
     return new ReleaseVehicleForSale(vehicleGateway);
+  }
+
+  @Bean
+  ReadmitVehicle readmitVehicle(VehicleGateway vehicleGateway) {
+    return new ReadmitVehicle(vehicleGateway);
   }
 
   @Bean
