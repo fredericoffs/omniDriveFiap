@@ -7,6 +7,7 @@ import br.com.fiap.omnidrive.TestcontainersConfiguration;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.util.List;
@@ -34,15 +35,15 @@ class JpaVehicleGatewayTest {
   private TestEntityManager entityManager;
 
   private static Vehicle register(String salePrice) {
-    return Vehicle.register(
-        "Fiat",
-        "Uno",
-        2020,
-        "Prata",
-        Money.of("30000"),
-        Money.of(salePrice),
-        VehicleOrigin.OWNED
-    );
+    return Vehicle.register(new VehicleDetails(
+            "Fiat",
+            "Uno",
+            2020,
+            "Prata",
+            Money.of("30000"),
+            Money.of(salePrice),
+            VehicleOrigin.OWNED
+        ));
   }
 
   private static Vehicle available(String salePrice) {
@@ -79,15 +80,15 @@ class JpaVehicleGatewayTest {
     flushAndClear();
 
     var found = gateway.findById(vehicle.getId()).orElseThrow();
-    found.update(
-        "Volkswagen",
-        "Gol",
-        2019,
-        "Branco",
-        Money.of("25000"),
-        Money.of("32000"),
-        VehicleOrigin.CONSIGNED
-    );
+    found.update(new VehicleDetails(
+            "Volkswagen",
+            "Gol",
+            2019,
+            "Branco",
+            Money.of("25000"),
+            Money.of("32000"),
+            VehicleOrigin.CONSIGNED
+        ));
     found.startPreparation();
     gateway.save(found);
     flushAndClear();
@@ -140,15 +141,15 @@ class JpaVehicleGatewayTest {
 
     firstRead.startPreparation();
     gateway.save(firstRead);
-    secondRead.update(
-        "Volkswagen",
-        "Gol",
-        2019,
-        "Branco",
-        Money.of("25000"),
-        Money.of("32000"),
-        VehicleOrigin.CONSIGNED
-    );
+    secondRead.update(new VehicleDetails(
+            "Volkswagen",
+            "Gol",
+            2019,
+            "Branco",
+            Money.of("25000"),
+            Money.of("32000"),
+            VehicleOrigin.CONSIGNED
+        ));
 
     assertThatThrownBy(() -> gateway.save(secondRead))
         .isInstanceOf(ConcurrentUpdateException.class)

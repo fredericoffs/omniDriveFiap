@@ -46,7 +46,7 @@ public class JpaVehicleGateway implements VehicleGateway {
     entity.copyFrom(vehicle);
     try {
       entity = vehicleRepository.saveAndFlush(entity);
-    } catch (OptimisticLockingFailureException e) {
+    } catch (OptimisticLockingFailureException _) {
       throw concurrentUpdate(vehicle);
     }
     statusHistoryRepository.saveAll(

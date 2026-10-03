@@ -6,6 +6,7 @@ import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -50,7 +51,7 @@ public class UpdateVehicle {
           "O veículo " + id + " foi alterado por outra operação. Consulte-o novamente e repita a operação"
       );
     }
-    vehicle.update(
+    vehicle.update(new VehicleDetails(
         input.brand(),
         input.model(),
         input.year(),
@@ -58,7 +59,7 @@ public class UpdateVehicle {
         Money.ofNullable(input.purchasePrice()),
         Money.ofNullable(input.salePrice()),
         input.origin()
-    );
+    ));
     return vehicleGateway.save(vehicle);
   }
 }

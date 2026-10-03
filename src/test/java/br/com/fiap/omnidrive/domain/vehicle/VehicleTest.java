@@ -7,11 +7,9 @@ import static org.assertj.core.api.Assertions.tuple;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
-import java.time.Year;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,30 +18,34 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Testes das regras de cadastro, edição e transição de status do {@link Vehicle}.
+ * Testes das regras de cadastro, edição e transição de status do {@link Vehicle}. As validações dos dados
+ * cadastrais ficam em {@link VehicleDetailsTest}.
  */
 class VehicleTest {
 
   private static final UUID SALE_ID = UUID.randomUUID();
 
-  private static final Money PRICE = Money.of("30000");
-
   private static final Money NEW_PURCHASE_PRICE = Money.of("35000");
 
-  static Stream<Arguments> missingRequiredFields() {
-    return Stream.of(
-        Arguments.of(" ", "Uno", "Prata", PRICE, PRICE, VehicleOrigin.OWNED, "A marca é obrigatória"),
-        Arguments.of("Fiat", null, "Prata", PRICE, PRICE, VehicleOrigin.OWNED, "O modelo é obrigatório"),
-        Arguments.of("Fiat", "Uno", "", PRICE, PRICE, VehicleOrigin.OWNED, "A cor é obrigatória"),
-        Arguments.of("Fiat", "Uno", "Prata", null, PRICE, VehicleOrigin.OWNED, "O valor de entrada é obrigatório"),
-        Arguments.of("Fiat", "Uno", "Prata", PRICE, null, VehicleOrigin.OWNED, "O preço de venda é obrigatório"),
-        Arguments.of("Fiat", "Uno", "Prata", PRICE, PRICE, null, "A origem é obrigatória")
-    );
-  }
+  private static final VehicleDetails DETAILS = new VehicleDetails(
+      "Fiat",
+      "Uno",
+      2020,
+      "Prata",
+      Money.of("30000"),
+      Money.of("40000"),
+      VehicleOrigin.OWNED
+  );
 
-  static IntStream yearsOutOfRange() {
-    return IntStream.of(1899, Year.now().getValue() + 2);
-  }
+  private static final VehicleDetails NEW_DETAILS = new VehicleDetails(
+      "Volkswagen",
+      "Gol",
+      2019,
+      "Branco",
+      Money.of("25000"),
+      Money.of("32000"),
+      VehicleOrigin.CONSIGNED
+  );
 
   static Stream<Arguments> invalidTransitions() {
     return Stream.of(
@@ -64,13 +66,16 @@ class VehicleTest {
   }
 
   private static Vehicle register() {
-    return Vehicle.register("Fiat", "Uno", 2020, "Prata", Money.of("30000"), Money.of("40000"),
-        VehicleOrigin.OWNED);
+    return Vehicle.register(DETAILS);
   }
 
   private static Vehicle restore(VehicleStatus status) {
-    return Vehicle.restore(UUID.randomUUID(), "Fiat", "Uno", 2020, "Prata", Money.of("30000"), Money.of("40000"),
-        VehicleOrigin.OWNED, status, 0);
+    return Vehicle.restore(
+        UUID.randomUUID(),
+        DETAILS,
+        status,
+        0
+    );
   }
 
   @Test
@@ -89,16 +94,6 @@ class VehicleTest {
           assertThat(history.saleId()).isNull();
           assertThat(history.occurredAt()).isNotNull();
         });
-  }
-
-  @Test
-  void registrationStripsTexts() {
-    var vehicle = Vehicle.register("  Fiat ", " Uno ", 2020, " Prata ", Money.of("30000"), Money.of("40000"),
-        VehicleOrigin.OWNED);
-
-    assertThat(vehicle.getBrand()).isEqualTo("Fiat");
-    assertThat(vehicle.getModel()).isEqualTo("Uno");
-    assertThat(vehicle.getColor()).isEqualTo("Prata");
   }
 
   @Test
@@ -174,8 +169,7 @@ class VehicleTest {
   void updatesInEditableStatuses(VehicleStatus status) {
     var vehicle = restore(status);
 
-    vehicle.update("Volkswagen", "Gol", 2019, "Branco", Money.of("25000"), Money.of("32000"),
-        VehicleOrigin.CONSIGNED);
+    vehicle.update(NEW_DETAILS);
 
     assertThat(vehicle.getBrand()).isEqualTo("Volkswagen");
     assertThat(vehicle.getModel()).isEqualTo("Gol");
@@ -193,47 +187,11 @@ class VehicleTest {
   void blocksUpdateWhenReservedOrSold(VehicleStatus status) {
     var vehicle = restore(status);
 
-    var costPrice = Money.of("25000");
-    var salePrice = Money.of("32000");
-
-    assertThatThrownBy(() -> vehicle.update("Volkswagen", "Gol", 2019, "Branco", costPrice,
-        salePrice, VehicleOrigin.CONSIGNED))
+    assertThatThrownBy(() -> vehicle.update(NEW_DETAILS))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessageContaining(status.name());
 
     assertThat(vehicle.getBrand()).isEqualTo("Fiat");
-  }
-
-  @ParameterizedTest(name = "{6}")
-  @MethodSource("missingRequiredFields")
-  void rejectsMissingRequiredFields(
-      String brand,
-      String model,
-      String color,
-      Money purchasePrice,
-      Money salePrice,
-      VehicleOrigin origin,
-      String expectedMessage
-  ) {
-    assertThatThrownBy(() -> Vehicle.register(brand, model, 2020, color, purchasePrice, salePrice, origin))
-        .isInstanceOf(BusinessRuleException.class)
-        .hasMessage(expectedMessage);
-  }
-
-  @Test
-  void acceptsNextYear() {
-    var nextYear = Year.now().getValue() + 1;
-
-    var vehicle = Vehicle.register("Fiat", "Uno", nextYear, "Prata", PRICE, PRICE, VehicleOrigin.OWNED);
-
-    assertThat(vehicle.getYear()).isEqualTo(nextYear);
-  }
-
-  @ParameterizedTest
-  @MethodSource("yearsOutOfRange")
-  void rejectsYearOutOfRange(int year) {
-    assertThatThrownBy(() -> Vehicle.register("Fiat", "Uno", year, "Prata", PRICE, PRICE, VehicleOrigin.OWNED))
-        .isInstanceOf(BusinessRuleException.class);
   }
 
   @Test

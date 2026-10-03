@@ -4,7 +4,6 @@ import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 
-import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -32,47 +31,29 @@ import java.util.UUID;
  */
 public class Vehicle {
 
-  private static final int MIN_YEAR = 1900;
-
   private final UUID id;
   private final Long version;
   private final List<VehicleStatusHistory> statusChanges = new ArrayList<>();
-  private String brand;
-  private String model;
-  private int year;
-  private String color;
-  private Money purchasePrice;
-  private Money salePrice;
-  private VehicleOrigin origin;
+  private VehicleDetails details;
   private VehicleStatus status;
 
   private Vehicle(
       UUID id,
+      VehicleDetails details,
       VehicleStatus status,
       Long version
   ) {
     this.id = Objects.requireNonNull(id);
+    this.details = Objects.requireNonNull(details);
     this.status = status;
     this.version = version;
   }
 
   /**
    * Cadastra um veículo que chegou à loja. Ele entra como Recebido.
-   *
-   * @param purchasePrice valor de entrada: quanto a loja pagou ou acordou com o dono, se consignado
-   * @param salePrice     preço de venda anunciado
    */
-  public static Vehicle register(
-      String brand,
-      String model,
-      int year,
-      String color,
-      Money purchasePrice,
-      Money salePrice,
-      VehicleOrigin origin
-  ) {
-    var vehicle = new Vehicle(UUID.randomUUID(), null, null);
-    vehicle.fill(brand, model, year, color, purchasePrice, salePrice, origin);
+  public static Vehicle register(VehicleDetails details) {
+    var vehicle = new Vehicle(UUID.randomUUID(), details, null, null);
     vehicle.changeStatus(VehicleStatus.RECEIVED, "Cadastro do veículo", null);
     return vehicle;
   }
@@ -84,61 +65,23 @@ public class Vehicle {
    */
   public static Vehicle restore(
       UUID id,
-      String brand,
-      String model,
-      int year,
-      String color,
-      Money purchasePrice,
-      Money salePrice,
-      VehicleOrigin origin,
+      VehicleDetails details,
       VehicleStatus status,
       long version
   ) {
-    var vehicle = new Vehicle(id, Objects.requireNonNull(status), version);
-    vehicle.fill(brand, model, year, color, purchasePrice, salePrice, origin);
-    return vehicle;
-  }
-
-  private static int validateYear(int year) {
-    var maxYear = Year.now().getValue() + 1;
-    if (year < MIN_YEAR || year > maxYear) {
-      throw new BusinessRuleException("O ano deve estar entre " + MIN_YEAR + " e " + maxYear);
-    }
-    return year;
-  }
-
-  private static String requireText(String value, String message) {
-    if (value == null || value.isBlank()) {
-      throw new BusinessRuleException(message);
-    }
-    return value.strip();
-  }
-
-  private static <T> T require(T value, String message) {
-    if (value == null) {
-      throw new BusinessRuleException(message);
-    }
-    return value;
+    return new Vehicle(id, details, Objects.requireNonNull(status), version);
   }
 
   /**
    * Substitui os dados do veículo. Só é permitido em Recebido, Em Preparação e Disponível.
    *
-   * @throws BusinessRuleException se o status atual não permite edição ou algum dado for inválido
+   * @throws BusinessRuleException se o status atual não permite edição
    */
-  public void update(
-      String brand,
-      String model,
-      int year,
-      String color,
-      Money purchasePrice,
-      Money salePrice,
-      VehicleOrigin origin
-  ) {
+  public void update(VehicleDetails newDetails) {
     if (!status.isEditable()) {
       throw new BusinessRuleException("O veículo não pode ser editado com status " + status);
     }
-    fill(brand, model, year, color, purchasePrice, salePrice, origin);
+    details = Objects.requireNonNull(newDetails);
   }
 
   /**
@@ -191,8 +134,8 @@ public class Vehicle {
    */
   public void readmit(Money newPurchasePrice) {
     requireStatus(VehicleStatus.SOLD, VehicleStatus.RECEIVED);
-    var previousPurchasePrice = purchasePrice;
-    purchasePrice = require(newPurchasePrice, "O valor de entrada é obrigatório");
+    var previousPurchasePrice = details.purchasePrice();
+    details = details.withPurchasePrice(newPurchasePrice);
     changeStatus(VehicleStatus.RECEIVED,
         "Reentrada na loja; valor de entrada anterior: " + previousPurchasePrice.amount().toPlainString(),
         null);
@@ -216,54 +159,40 @@ public class Vehicle {
     return version;
   }
 
+  public VehicleDetails getDetails() {
+    return details;
+  }
+
   public String getBrand() {
-    return brand;
+    return details.brand();
   }
 
   public String getModel() {
-    return model;
+    return details.model();
   }
 
   public int getYear() {
-    return year;
+    return details.year();
   }
 
   public String getColor() {
-    return color;
+    return details.color();
   }
 
   public Money getPurchasePrice() {
-    return purchasePrice;
+    return details.purchasePrice();
   }
 
   public Money getSalePrice() {
-    return salePrice;
+    return details.salePrice();
   }
 
   public VehicleOrigin getOrigin() {
-    return origin;
+    return details.origin();
   }
 
   public VehicleStatus getStatus() {
     return status;
-  }
-
-  private void fill(
-      String brand,
-      String model,
-      int year,
-      String color,
-      Money purchasePrice,
-      Money salePrice,
-      VehicleOrigin origin
-  ) {
-    this.brand = requireText(brand, "A marca é obrigatória");
-    this.model = requireText(model, "O modelo é obrigatório");
-    this.year = validateYear(year);
-    this.color = requireText(color, "A cor é obrigatória");
-    this.purchasePrice = require(purchasePrice, "O valor de entrada é obrigatório");
-    this.salePrice = require(salePrice, "O preço de venda é obrigatório");
-    this.origin = require(origin, "A origem é obrigatória");
   }
 
   private void transition(
@@ -290,7 +219,7 @@ public class Vehicle {
       String reason,
       UUID saleId
   ) {
-    statusChanges.add(VehicleStatusHistory.record(id, status, next, reason, saleId));
+    statusChanges.add(VehicleStatusHistory.recordsVehicleStatus(id, status, next, reason, saleId));
     status = next;
   }
 }

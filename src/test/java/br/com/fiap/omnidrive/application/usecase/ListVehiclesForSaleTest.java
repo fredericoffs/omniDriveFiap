@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.util.List;
@@ -30,13 +31,15 @@ class ListVehiclesForSaleTest {
   private static Vehicle available(String salePrice) {
     return Vehicle.restore(
         UUID.randomUUID(),
-        "Fiat",
-        "Uno",
-        2020,
-        "Prata",
-        Money.of("30000"),
-        Money.of(salePrice),
-        VehicleOrigin.OWNED,
+        new VehicleDetails(
+            "Fiat",
+            "Uno",
+            2020,
+            "Prata",
+            Money.of("30000"),
+            Money.of(salePrice),
+            VehicleOrigin.OWNED
+        ),
         VehicleStatus.AVAILABLE,
         0
     );

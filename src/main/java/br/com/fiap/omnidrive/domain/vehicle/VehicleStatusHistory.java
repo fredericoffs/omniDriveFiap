@@ -23,7 +23,7 @@ public record VehicleStatusHistory(
     UUID saleId,
     Instant occurredAt) {
 
-  static VehicleStatusHistory record(
+  static VehicleStatusHistory recordsVehicleStatus(
       UUID vehicleId,
       VehicleStatus previousStatus,
       VehicleStatus newStatus,

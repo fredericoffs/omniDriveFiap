@@ -11,7 +11,7 @@ public enum VehicleStatus {
   RECEIVED(true),
 
   /**
-   * Em revisão, higienização ou funilaria. Todo veículo passa por aqui.
+   * Em revisão, higienização ou funilaria. Todos os veículos passam por aqui.
    */
   IN_PREPARATION(true),
 

@@ -3,6 +3,7 @@ package br.com.fiap.omnidrive.application.usecase;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 
 import java.util.Objects;
 
@@ -26,7 +27,7 @@ public class RegisterVehicle {
    */
   public Vehicle execute(RegisterVehicleInput input) {
     Objects.requireNonNull(input);
-    var vehicle = Vehicle.register(
+    var vehicle = Vehicle.register(new VehicleDetails(
         input.brand(),
         input.model(),
         input.year(),
@@ -34,7 +35,7 @@ public class RegisterVehicle {
         Money.ofNullable(input.purchasePrice()),
         Money.ofNullable(input.salePrice()),
         input.origin()
-    );
+    ));
     return vehicleGateway.save(vehicle);
   }
 }

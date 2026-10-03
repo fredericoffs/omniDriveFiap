@@ -8,6 +8,7 @@ import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.util.Optional;
@@ -40,13 +41,15 @@ class GetVehicleTest {
   void returnsVehicleFoundByGateway() {
     var vehicle = Vehicle.restore(
         VEHICLE_ID,
-        "Fiat",
-        "Uno",
-        2020,
-        "Prata",
-        Money.of("30000"),
-        Money.of("40000"),
-        VehicleOrigin.OWNED,
+        new VehicleDetails(
+            "Fiat",
+            "Uno",
+            2020,
+            "Prata",
+            Money.of("30000"),
+            Money.of("40000"),
+            VehicleOrigin.OWNED
+        ),
         VehicleStatus.AVAILABLE,
         2
     );

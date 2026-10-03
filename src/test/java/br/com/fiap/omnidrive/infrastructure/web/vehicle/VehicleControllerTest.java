@@ -20,6 +20,7 @@ import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.math.BigDecimal;
@@ -98,13 +99,15 @@ class VehicleControllerTest {
   ) {
     return Vehicle.restore(
         VEHICLE_ID,
-        "Fiat",
-        "Uno",
-        2020,
-        "Prata",
-        Money.of("30000"),
-        Money.of(salePrice),
-        VehicleOrigin.OWNED,
+        new VehicleDetails(
+            "Fiat",
+            "Uno",
+            2020,
+            "Prata",
+            Money.of("30000"),
+            Money.of(salePrice),
+            VehicleOrigin.OWNED
+        ),
         status,
         version
     );

@@ -13,6 +13,7 @@ import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.math.BigDecimal;
@@ -44,13 +45,15 @@ class UpdateVehicleTest {
   private static Vehicle vehicle(VehicleStatus status) {
     return Vehicle.restore(
         VEHICLE_ID,
-        "Fiat",
-        "Uno",
-        2020,
-        "Prata",
-        Money.of("30000"),
-        Money.of("40000"),
-        VehicleOrigin.OWNED,
+        new VehicleDetails(
+            "Fiat",
+            "Uno",
+            2020,
+            "Prata",
+            Money.of("30000"),
+            Money.of("40000"),
+            VehicleOrigin.OWNED
+        ),
         status,
         CURRENT_VERSION
     );

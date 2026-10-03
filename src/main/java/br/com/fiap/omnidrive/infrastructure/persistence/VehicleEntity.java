@@ -2,6 +2,7 @@ package br.com.fiap.omnidrive.infrastructure.persistence;
 
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
+import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import jakarta.persistence.Column;
@@ -84,15 +85,18 @@ class VehicleEntity {
   }
 
   Vehicle toDomain() {
-    return Vehicle.restore(
-        id,
+    var details = new VehicleDetails(
         brand,
         model,
         year,
         color,
         new Money(purchasePrice),
         new Money(salePrice),
-        origin,
+        origin
+    );
+    return Vehicle.restore(
+        id,
+        details,
         status,
         version
     );
