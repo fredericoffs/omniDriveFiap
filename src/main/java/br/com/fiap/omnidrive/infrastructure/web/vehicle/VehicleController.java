@@ -3,6 +3,8 @@ package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
+import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,32 +28,37 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * Endpoints de veículos: cadastro, consulta, edição e listagem dos veículos à venda.
+ * Endpoints de veículos: cadastro, consulta, edição, preparação, liberação para venda e listagem dos veículos à
+ * venda.
  */
-@Tag(name = "Veículos", description = "Cadastro, consulta, edição e listagem de veículos")
+@Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação e listagem de veículos")
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleController {
 
-  // TODO: POST /vehicles/{id}/preparation (Recebido → Em Preparação) e POST /vehicles/{id}/release
-  //  (Em Preparação → Disponível); sem eles nenhum veículo chega à listagem "à venda" pela API.
   // TODO: POST /vehicles/{id}/readmission (Vendido → Recebido, com novo valor de entrada).
   // TODO: GET /vehicles/sold, ordenado pelo valor da venda (semana 3, junto com Sale).
 
   private final RegisterVehicle registerVehicle;
   private final GetVehicle getVehicle;
   private final UpdateVehicle updateVehicle;
+  private final StartVehiclePreparation startVehiclePreparation;
+  private final ReleaseVehicleForSale releaseVehicleForSale;
   private final ListVehiclesForSale listVehiclesForSale;
 
   VehicleController(
       RegisterVehicle registerVehicle,
       GetVehicle getVehicle,
       UpdateVehicle updateVehicle,
+      StartVehiclePreparation startVehiclePreparation,
+      ReleaseVehicleForSale releaseVehicleForSale,
       ListVehiclesForSale listVehiclesForSale
   ) {
     this.registerVehicle = registerVehicle;
     this.getVehicle = getVehicle;
     this.updateVehicle = updateVehicle;
+    this.startVehiclePreparation = startVehiclePreparation;
+    this.releaseVehicleForSale = releaseVehicleForSale;
     this.listVehiclesForSale = listVehiclesForSale;
   }
 
@@ -140,6 +147,58 @@ public class VehicleController {
       @Valid @RequestBody UpdateVehicleRequest request
   ) {
     return VehicleResponse.from(updateVehicle.execute(id, request.toInput()));
+  }
+
+  @Operation(
+      summary = "Iniciar preparação",
+      description = "Coloca em preparação um veículo com status RECEIVED (recebido). Ele passa a IN_PREPARATION."
+  )
+  @ApiResponse(responseCode = "200", description = "Veículo em preparação")
+  @ApiResponse(
+      responseCode = "404",
+      description = "Veículo não encontrado",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "O veículo foi alterado por outra operação durante a mudança de status",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "422",
+      description = "O veículo não está com status RECEIVED",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @PostMapping("/{id}/preparation")
+  VehicleResponse startPreparation(@Parameter(description = "Identificador do veículo") @PathVariable UUID id) {
+    return VehicleResponse.from(startVehiclePreparation.execute(id));
+  }
+
+  @Operation(
+      summary = "Liberar para venda",
+      description = """
+          Libera para venda um veículo com status IN_PREPARATION (em preparação). Ele passa a AVAILABLE e entra \
+          na listagem de veículos à venda."""
+  )
+  @ApiResponse(responseCode = "200", description = "Veículo disponível para venda")
+  @ApiResponse(
+      responseCode = "404",
+      description = "Veículo não encontrado",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "O veículo foi alterado por outra operação durante a mudança de status",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "422",
+      description = "O veículo não está com status IN_PREPARATION",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @PostMapping("/{id}/release")
+  VehicleResponse release(@Parameter(description = "Identificador do veículo") @PathVariable UUID id) {
+    return VehicleResponse.from(releaseVehicleForSale.execute(id));
   }
 
   @Operation(

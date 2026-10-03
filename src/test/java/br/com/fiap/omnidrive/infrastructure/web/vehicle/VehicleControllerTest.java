@@ -10,11 +10,14 @@ import static org.mockito.Mockito.when;
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
+import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicleInput;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
+import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -78,6 +81,12 @@ class VehicleControllerTest {
 
   @MockitoBean
   private UpdateVehicle updateVehicle;
+
+  @MockitoBean
+  private StartVehiclePreparation startVehiclePreparation;
+
+  @MockitoBean
+  private ReleaseVehicleForSale releaseVehicleForSale;
 
   @MockitoBean
   private ListVehiclesForSale listVehiclesForSale;
@@ -334,6 +343,61 @@ class VehicleControllerTest {
         .bodyJson()
         .extractingPath("$.detail")
         .isEqualTo("Valor inválido para o parâmetro id");
+  }
+
+  @Test
+  void startsPreparation() {
+    when(startVehiclePreparation.execute(VEHICLE_ID)).thenReturn(vehicle("40000", VehicleStatus.IN_PREPARATION, 1));
+
+    var response = mvc.post().uri("/vehicles/{id}/preparation", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "status": "IN_PREPARATION",
+              "version": 1
+            }
+            """);
+  }
+
+  @Test
+  void releasesForSale() {
+    when(releaseVehicleForSale.execute(VEHICLE_ID)).thenReturn(vehicle("40000", VehicleStatus.AVAILABLE, 2));
+
+    var response = mvc.post().uri("/vehicles/{id}/release", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "status": "AVAILABLE",
+              "version": 2
+            }
+            """);
+  }
+
+  @Test
+  void returnsUnprocessableContentForInvalidStatusTransition() {
+    when(releaseVehicleForSale.execute(VEHICLE_ID))
+        .thenThrow(new InvalidStatusTransitionException("Transição inválida de RECEIVED para AVAILABLE"));
+
+    var response = mvc.post().uri("/vehicles/{id}/release", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": 422,
+              "title": "Regra de negócio violada",
+              "detail": "Transição inválida de RECEIVED para AVAILABLE"
+            }
+            """);
   }
 
   @Test

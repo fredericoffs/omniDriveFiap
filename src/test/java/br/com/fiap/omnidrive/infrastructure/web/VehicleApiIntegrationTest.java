@@ -100,6 +100,45 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void preparesAndReleasesVehicleUntilItIsListedForSale() {
+    var location = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("Renault", null))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+
+    var releasedTooEarly = mvc.post().uri(location + "/release").exchange();
+    assertThat(releasedTooEarly).hasStatus(HttpStatus.UNPROCESSABLE_CONTENT);
+
+    var prepared = mvc.post().uri(location + "/preparation").exchange();
+    assertThat(prepared)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("IN_PREPARATION");
+
+    var released = mvc.post().uri(location + "/release").exchange();
+    assertThat(released)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": "AVAILABLE",
+              "version": 2
+            }
+            """);
+
+    var forSale = mvc.get().uri("/vehicles/for-sale").exchange();
+    assertThat(forSale)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$[*].brand")
+        .asArray()
+        .contains("Renault");
+  }
+
+  @Test
   void returnsNotFoundForUnknownVehicle() {
     var response = mvc.put().uri("/vehicles/{id}", "6b1f7a4e-3c1d-4a8e-9a4f-2f1d1c0b9e7a")
         .contentType(MediaType.APPLICATION_JSON)
