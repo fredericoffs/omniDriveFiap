@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -16,6 +17,30 @@ import java.math.BigDecimal;
  */
 @Schema(description = "Dados para cadastrar um veículo que chegou à loja")
 public record RegisterVehicleRequest(
+
+    @Schema(
+        description = "Chassi. A partir de 1987, deve ser um VIN de 17 caracteres (sem I, O e Q), com o código da "
+            + "10ª posição correspondente ao ano; até 1986, outros formatos são aceitos. É único, não pode ser "
+            + "alterado depois do cadastro e é gravado em maiúsculas",
+        example = "9BWZZZ377LT004251",
+        maxLength = 30
+    )
+    @NotBlank(message = "O chassi é obrigatório")
+    @Size(max = 30, message = "O chassi deve ter no máximo 30 caracteres")
+    String chassis,
+
+    @Schema(
+        description = "Placa, no padrão antigo (ABC-1234) ou no Mercosul (ABC1D23). Letras minúsculas e hífen são "
+            + "aceitos; a placa é gravada em maiúsculas e sem hífen",
+        example = "ABC1D23"
+    )
+    @NotBlank(message = "A placa é obrigatória")
+    String plate,
+
+    @Schema(description = "Quilometragem, em km", example = "45000")
+    @NotNull(message = "A quilometragem é obrigatória")
+    @PositiveOrZero(message = "A quilometragem não pode ser negativa")
+    Integer mileage,
 
     @Schema(description = "Marca", example = "Fiat", maxLength = 60)
     @NotBlank(message = "A marca é obrigatória")
@@ -57,6 +82,17 @@ public record RegisterVehicleRequest(
 ) {
 
   RegisterVehicleInput toInput() {
-    return new RegisterVehicleInput(brand, model, year, color, purchasePrice, salePrice, origin);
+    return new RegisterVehicleInput(
+        chassis,
+        plate,
+        mileage,
+        brand,
+        model,
+        year,
+        color,
+        purchasePrice,
+        salePrice,
+        origin
+    );
   }
 }

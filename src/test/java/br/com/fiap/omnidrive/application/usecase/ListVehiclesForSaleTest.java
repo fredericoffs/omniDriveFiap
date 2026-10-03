@@ -5,6 +5,8 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -31,11 +33,14 @@ class ListVehiclesForSaleTest {
   private static Vehicle available(String salePrice) {
     return Vehicle.restore(
         UUID.randomUUID(),
+        new Chassis("9BWZZZ377LT004251"),
         new VehicleDetails(
             "Fiat",
             "Uno",
             2020,
             "Prata",
+            new Plate("ABC1D23"),
+            45000,
             Money.of("30000"),
             Money.of(salePrice),
             VehicleOrigin.OWNED

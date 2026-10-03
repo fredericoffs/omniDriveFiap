@@ -12,4 +12,8 @@ import java.util.UUID;
 interface VehicleJpaRepository extends JpaRepository<VehicleEntity, UUID> {
 
   List<VehicleEntity> findByStatusOrderBySalePriceAsc(VehicleStatus status);
+
+  boolean existsByChassis(String chassis);
+
+  boolean existsByPlate(String plate);
 }

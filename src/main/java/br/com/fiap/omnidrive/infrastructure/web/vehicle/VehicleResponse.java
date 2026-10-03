@@ -17,6 +17,31 @@ public record VehicleResponse(
     @Schema(description = "Identificador do veículo", example = "0f8fad5b-d9cb-469f-a165-70867728950e")
     UUID id,
 
+    @Schema(description = "Chassi, em maiúsculas", example = "9BWZZZ377LT004251")
+    String chassis,
+
+    @Schema(
+        description = "Indica se o chassi segue o padrão VIN de 17 caracteres. Veículos até 1986 podem ter chassi "
+            + "em outro formato",
+        example = "true"
+    )
+    boolean vin,
+
+    @Schema(
+        description = "Indica se o dígito verificador do VIN (9ª posição) confere. É só informativo: o dígito é "
+            + "obrigatório na América do Norte, mas muitas montadoras brasileiras não o calculam. Nulo quando o "
+            + "chassi não é VIN",
+        example = "false",
+        nullable = true
+    )
+    Boolean vinCheckDigitValid,
+
+    @Schema(description = "Placa, em maiúsculas e sem hífen", example = "ABC1D23")
+    String plate,
+
+    @Schema(description = "Quilometragem, em km", example = "45000")
+    int mileage,
+
     @Schema(description = "Marca", example = "Fiat")
     String brand,
 
@@ -52,6 +77,11 @@ public record VehicleResponse(
   static VehicleResponse from(Vehicle vehicle) {
     return new VehicleResponse(
         vehicle.getId(),
+        vehicle.getChassis().value(),
+        vehicle.getChassis().isVin(),
+        vehicle.getChassis().isVin() ? vehicle.getChassis().hasValidCheckDigit() : null,
+        vehicle.getPlate().value(),
+        vehicle.getMileage(),
         vehicle.getBrand(),
         vehicle.getModel(),
         vehicle.getYear(),

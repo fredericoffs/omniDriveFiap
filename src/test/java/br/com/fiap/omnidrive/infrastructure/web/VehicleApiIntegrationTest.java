@@ -25,11 +25,15 @@ class VehicleApiIntegrationTest {
   private MockMvcTester mvc;
 
   private static String body(
+      String plate,
       String brand,
       Long version
   ) {
     return """
         {
+          "chassis": "9BWZZZ377LT00%s",
+          "plate": "%s",
+          "mileage": 45000,
           "brand": "%s",
           "model": "Uno",
           "year": 2020,
@@ -38,14 +42,14 @@ class VehicleApiIntegrationTest {
           "salePrice": 40000,
           "origin": "OWNED"%s
         }
-        """.formatted(brand, version == null ? "" : ", \"version\": " + version);
+        """.formatted(plate.substring(3), plate, brand, version == null ? "" : ", \"version\": " + version);
   }
 
   @Test
   void registersGetsAndUpdatesVehicleRejectingOutdatedVersion() {
     var created = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body("Fiat", null))
+        .content(body("FIA1001", "Fiat", null))
         .exchange();
     assertThat(created)
         .hasStatus(HttpStatus.CREATED)
@@ -73,7 +77,7 @@ class VehicleApiIntegrationTest {
 
     var updated = mvc.put().uri(location)
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body("Volkswagen", 0L))
+        .content(body("FIA1001", "Volkswagen", 0L))
         .exchange();
     assertThat(updated)
         .hasStatus(HttpStatus.OK)
@@ -87,7 +91,7 @@ class VehicleApiIntegrationTest {
 
     var outdated = mvc.put().uri(location)
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body("Chevrolet", 0L))
+        .content(body("FIA1001", "Chevrolet", 0L))
         .exchange();
     assertThat(outdated).hasStatus(HttpStatus.CONFLICT);
 
@@ -103,7 +107,7 @@ class VehicleApiIntegrationTest {
   void preparesAndReleasesVehicleUntilItIsListedForSale() {
     var location = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body("Renault", null))
+        .content(body("REN1002", "Renault", null))
         .exchange()
         .getResponse()
         .getHeader("Location");
@@ -142,7 +146,7 @@ class VehicleApiIntegrationTest {
   void rejectsReadmissionOfVehicleThatWasNotSold() {
     var location = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body("Peugeot", null))
+        .content(body("PEU1003", "Peugeot", null))
         .exchange()
         .getResponse()
         .getHeader("Location");
@@ -151,7 +155,8 @@ class VehicleApiIntegrationTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
             {
-              "purchasePrice": 35000
+              "purchasePrice": 35000,
+              "mileage": 52000
             }
             """)
         .exchange();
@@ -164,10 +169,34 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void rejectsDuplicateChassisAndPlate() {
+    var first = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("DUP1004", "Fiat", null))
+        .exchange();
+    assertThat(first).hasStatus(HttpStatus.CREATED);
+
+    var duplicate = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("DUP1004", "Fiat", null))
+        .exchange();
+
+    assertThat(duplicate)
+        .hasStatus(HttpStatus.CONFLICT)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "title": "Registro duplicado",
+              "detail": "Já existe um veículo com o chassi 9BWZZZ377LT001004"
+            }
+            """);
+  }
+
+  @Test
   void returnsNotFoundForUnknownVehicle() {
     var response = mvc.put().uri("/vehicles/{id}", "6b1f7a4e-3c1d-4a8e-9a4f-2f1d1c0b9e7a")
         .contentType(MediaType.APPLICATION_JSON)
-        .content(body("Fiat", 0L))
+        .content(body("UNK1005", "Fiat", 0L))
         .exchange();
 
     assertThat(response).hasStatus(HttpStatus.NOT_FOUND);

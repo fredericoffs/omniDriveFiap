@@ -7,6 +7,8 @@ import java.math.BigDecimal;
 /**
  * Novos dados de um veículo. Todos os campos são substituídos.
  *
+ * @param plate         placa, no padrão antigo ou no Mercosul
+ * @param mileage       quilometragem, em km
  * @param brand         marca
  * @param model         modelo
  * @param year          ano
@@ -17,6 +19,8 @@ import java.math.BigDecimal;
  * @param version       versão do veículo que o cliente leu antes de editar
  */
 public record UpdateVehicleInput(
+    String plate,
+    int mileage,
     String brand,
     String model,
     int year,

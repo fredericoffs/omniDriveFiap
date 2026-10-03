@@ -1,8 +1,10 @@
 package br.com.fiap.omnidrive.infrastructure.web;
 
+import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
+import java.util.LinkedHashMap;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -17,14 +19,12 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.util.LinkedHashMap;
-
 /**
  * Converte as exceções em respostas no formato Problem Details (RFC 9457), com mensagens em português.
  *
  * <ul>
  *     <li>{@link NotFoundException} → 404</li>
- *     <li>{@link ConcurrentUpdateException} → 409</li>
+ *     <li>{@link ConcurrentUpdateException} e {@link AlreadyExistsException} → 409</li>
  *     <li>{@link BusinessRuleException} → 422</li>
  *     <li>Validação do corpo, JSON inválido ou parâmetro com formato errado → 400</li>
  * </ul>
@@ -52,6 +52,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(ConcurrentUpdateException.class)
   ProblemDetail handleConcurrentUpdate(ConcurrentUpdateException exception) {
     return problem(HttpStatus.CONFLICT, "Conflito de atualização", exception.getMessage());
+  }
+
+  @ExceptionHandler(AlreadyExistsException.class)
+  ProblemDetail handleAlreadyExists(AlreadyExistsException exception) {
+    return problem(HttpStatus.CONFLICT, "Registro duplicado", exception.getMessage());
   }
 
   @ExceptionHandler(BusinessRuleException.class)

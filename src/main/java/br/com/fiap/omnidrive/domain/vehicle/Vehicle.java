@@ -12,7 +12,9 @@ import java.util.UUID;
 /**
  * Veículo da loja e as regras do seu ciclo de status.
  *
- * <p>O cadastro é único: um veículo vendido pode voltar à loja pela reentrada e ser vendido de novo. Toda mudança
+ * <p>O cadastro é único: um veículo vendido pode voltar à loja pela reentrada e ser vendido de novo. O chassi
+ * ({@link Chassis}) identifica o veículo, não muda depois do cadastro e precisa ser compatível com o ano informado no
+ * cadastro e na edição. Toda mudança
  * de status gera um {@link VehicleStatusHistory}, disponível em {@link #getStatusChanges()} até ser persistido.
  *
  * <p>A venda atual ({@link #getCurrentSaleId()}) é a venda que controla o veículo enquanto ele está Reservado ou
@@ -30,12 +32,13 @@ import java.util.UUID;
  *     <li>Reservado → Vendido ({@link #confirmSale(UUID)})</li>
  *     <li>Reservado → Disponível ({@link #releaseReservation(UUID)})</li>
  *     <li>Vendido → Disponível ({@link #reverseSale(UUID)})</li>
- *     <li>Vendido → Recebido ({@link #readmit(Money)})</li>
+ *     <li>Vendido → Recebido ({@link #readmit(Money, Integer)})</li>
  * </ul>
  */
 public class Vehicle {
 
   private final UUID id;
+  private final Chassis chassis;
   private final Long version;
   private final List<VehicleStatusHistory> statusChanges = new ArrayList<>();
   private VehicleDetails details;
@@ -44,12 +47,14 @@ public class Vehicle {
 
   private Vehicle(
       UUID id,
+      Chassis chassis,
       VehicleDetails details,
       VehicleStatus status,
       UUID currentSaleId,
       Long version
   ) {
     this.id = Objects.requireNonNull(id);
+    this.chassis = Objects.requireNonNull(chassis);
     this.details = Objects.requireNonNull(details);
     this.status = status;
     this.currentSaleId = currentSaleId;
@@ -58,9 +63,25 @@ public class Vehicle {
 
   /**
    * Cadastra um veículo que chegou à loja. Ele entra como Recebido.
+   *
+   * @throws BusinessRuleException se o chassi não for informado ou não for compatível com o ano
    */
-  public static Vehicle register(VehicleDetails details) {
-    var vehicle = new Vehicle(UUID.randomUUID(), details, null, null, null);
+  public static Vehicle register(
+      Chassis chassis,
+      VehicleDetails details
+  ) {
+    if (chassis == null) {
+      throw new BusinessRuleException("O chassi é obrigatório");
+    }
+    chassis.requireCompatibleWith(details.year());
+    var vehicle = new Vehicle(
+        UUID.randomUUID(),
+        chassis,
+        details,
+        null,
+        null,
+        null
+    );
     vehicle.changeStatus(VehicleStatus.RECEIVED, "Cadastro do veículo", null);
     return vehicle;
   }
@@ -74,27 +95,30 @@ public class Vehicle {
    */
   public static Vehicle restore(
       UUID id,
+      Chassis chassis,
       VehicleDetails details,
       VehicleStatus status,
       UUID currentSaleId,
       long version
   ) {
-    if (Objects.requireNonNull(status).isLinkedToSale() != (currentSaleId != null)) {
+    if (Objects.requireNonNull(status).isLinkedToSale() == (currentSaleId == null)) {
       throw new IllegalArgumentException("Venda atual " + currentSaleId + " incompatível com o status " + status);
     }
-    return new Vehicle(id, details, status, currentSaleId, version);
+    return new Vehicle(id, chassis, details, status, currentSaleId, version);
   }
 
   /**
-   * Substitui os dados do veículo. Só é permitido em Recebido, Em Preparação e Disponível.
+   * Substitui os dados do veículo. Só é permitido em Recebido, Em Preparação e Disponível, e o novo ano precisa ser
+   * compatível com o chassi.
    *
-   * @throws BusinessRuleException se o status atual não permite edição
+   * @throws BusinessRuleException se o status atual não permite edição ou o ano não for compatível com o chassi
    */
   public void update(VehicleDetails newDetails) {
     if (!status.isEditable()) {
       throw new BusinessRuleException("O veículo não pode ser editado com status " + status);
     }
-    details = Objects.requireNonNull(newDetails);
+    chassis.requireCompatibleWith(newDetails.year());
+    details = newDetails;
   }
 
   /**
@@ -154,15 +178,28 @@ public class Vehicle {
   }
 
   /**
-   * Vendido → Recebido: o veículo volta à loja com um novo valor de entrada e fica sem venda atual. O valor anterior
-   * fica registrado no motivo do histórico.
+   * Vendido → Recebido: o veículo volta à loja com um novo valor de entrada e uma nova quilometragem, e fica sem venda
+   * atual. O valor de entrada e a quilometragem anteriores ficam registrados no motivo do histórico.
+   *
+   * @throws BusinessRuleException se a quilometragem não for informada ou não for maior que a atual
    */
-  public void readmit(Money newPurchasePrice) {
+  public void readmit(
+      Money newPurchasePrice,
+      Integer newMileage
+  ) {
     requireStatus(VehicleStatus.SOLD, VehicleStatus.RECEIVED);
-    var previousPurchasePrice = details.purchasePrice();
-    details = details.withPurchasePrice(newPurchasePrice);
+    if (newMileage == null) {
+      throw new BusinessRuleException("A quilometragem é obrigatória");
+    }
+    var previous = details;
+    if (newMileage <= previous.mileage()) {
+      throw new BusinessRuleException(
+          "A quilometragem da reentrada deve ser maior que a atual (" + previous.mileage() + " km)");
+    }
+    details = previous.withReadmission(newPurchasePrice, newMileage);
     changeStatus(VehicleStatus.RECEIVED,
-        "Reentrada na loja; valor de entrada anterior: " + previousPurchasePrice.amount().toPlainString(),
+        "Reentrada na loja; valor de entrada anterior: " + previous.purchasePrice().amount().toPlainString()
+            + "; quilometragem anterior: " + previous.mileage() + " km",
         null);
     currentSaleId = null;
   }
@@ -183,6 +220,10 @@ public class Vehicle {
 
   public UUID getId() {
     return id;
+  }
+
+  public Chassis getChassis() {
+    return chassis;
   }
 
   /**
@@ -210,6 +251,14 @@ public class Vehicle {
 
   public String getColor() {
     return details.color();
+  }
+
+  public Plate getPlate() {
+    return details.plate();
+  }
+
+  public int getMileage() {
+    return details.mileage();
   }
 
   public Money getPurchasePrice() {

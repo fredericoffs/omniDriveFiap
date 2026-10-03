@@ -9,9 +9,12 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -50,11 +53,14 @@ class UpdateVehicleTest {
   ) {
     return Vehicle.restore(
         VEHICLE_ID,
+        new Chassis("9BWZZZ377LT004251"),
         new VehicleDetails(
             "Fiat",
             "Uno",
             2020,
             "Prata",
+            new Plate("ABC1D23"),
+            45000,
             Money.of("30000"),
             Money.of("40000"),
             VehicleOrigin.OWNED
@@ -66,10 +72,22 @@ class UpdateVehicleTest {
   }
 
   private static UpdateVehicleInput input(Long version) {
+    return input(
+        "BRA2E19",
+        version
+    );
+  }
+
+  private static UpdateVehicleInput input(
+      String plate,
+      Long version
+  ) {
     return new UpdateVehicleInput(
+        plate,
+        46000,
         "Volkswagen",
         "Gol",
-        2019,
+        2020,
         "Branco",
         new BigDecimal("25000"),
         new BigDecimal("32000"),
@@ -91,15 +109,39 @@ class UpdateVehicleTest {
     var vehicle = updateVehicle.execute(VEHICLE_ID, INPUT);
 
     assertThat(vehicle.getId()).isEqualTo(VEHICLE_ID);
+    assertThat(vehicle.getPlate()).isEqualTo(new Plate("BRA2E19"));
+    assertThat(vehicle.getMileage()).isEqualTo(46000);
     assertThat(vehicle.getBrand()).isEqualTo("Volkswagen");
     assertThat(vehicle.getModel()).isEqualTo("Gol");
-    assertThat(vehicle.getYear()).isEqualTo(2019);
+    assertThat(vehicle.getYear()).isEqualTo(2020);
     assertThat(vehicle.getColor()).isEqualTo("Branco");
     assertThat(vehicle.getPurchasePrice()).isEqualTo(Money.of("25000"));
     assertThat(vehicle.getSalePrice()).isEqualTo(Money.of("32000"));
     assertThat(vehicle.getOrigin()).isEqualTo(VehicleOrigin.CONSIGNED);
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
     verify(vehicleGateway).save(vehicle);
+  }
+
+  @Test
+  void rejectsPlateOfAnotherVehicle() {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE, null)));
+    when(vehicleGateway.existsByPlate(new Plate("BRA2E19"))).thenReturn(true);
+
+    assertThatThrownBy(() -> updateVehicle.execute(VEHICLE_ID, INPUT))
+        .isInstanceOf(AlreadyExistsException.class)
+        .hasMessage("Já existe um veículo com a placa BRA2E19");
+    verify(vehicleGateway, never()).save(any());
+  }
+
+  @Test
+  void keepingPlateDoesNotCheckDuplicates() {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE, null)));
+    when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    var samePlateInput = input("abc1d23", CURRENT_VERSION);
+
+    updateVehicle.execute(VEHICLE_ID, samePlateInput);
+
+    verify(vehicleGateway, never()).existsByPlate(any());
   }
 
   @Test

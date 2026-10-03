@@ -17,10 +17,13 @@ import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicleInput;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -50,6 +53,9 @@ class VehicleControllerTest {
 
   private static final String VALID_BODY = """
       {
+        "chassis": "9BWZZZ377LT004251",
+        "plate": "ABC1D23",
+        "mileage": 45000,
         "brand": "Fiat",
         "model": "Uno",
         "year": 2020,
@@ -62,6 +68,8 @@ class VehicleControllerTest {
 
   private static final String VALID_UPDATE_BODY = """
       {
+        "plate": "ABC1D23",
+        "mileage": 45000,
         "brand": "Fiat",
         "model": "Uno",
         "year": 2020,
@@ -104,11 +112,14 @@ class VehicleControllerTest {
   ) {
     return Vehicle.restore(
         VEHICLE_ID,
+        new Chassis("9BWZZZ377LT004251"),
         new VehicleDetails(
             "Fiat",
             "Uno",
             2020,
             "Prata",
+            new Plate("ABC1D23"),
+            45000,
             Money.of("30000"),
             Money.of(salePrice),
             VehicleOrigin.OWNED
@@ -130,6 +141,11 @@ class VehicleControllerTest {
             new ConcurrentUpdateException("Veículo alterado"),
             HttpStatus.CONFLICT,
             "Conflito de atualização"
+        ),
+        Arguments.of(
+            new AlreadyExistsException("Já existe um veículo com a placa ABC1D23"),
+            HttpStatus.CONFLICT,
+            "Registro duplicado"
         ),
         Arguments.of(
             new BusinessRuleException("O veículo não pode ser editado no status RESERVED"),
@@ -155,6 +171,11 @@ class VehicleControllerTest {
         .isLenientlyEqualTo("""
             {
               "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "chassis": "9BWZZZ377LT004251",
+              "vin": true,
+              "vinCheckDigitValid": false,
+              "plate": "ABC1D23",
+              "mileage": 45000,
               "brand": "Fiat",
               "model": "Uno",
               "year": 2020,
@@ -287,6 +308,8 @@ class VehicleControllerTest {
     verify(updateVehicle).execute(
         VEHICLE_ID,
         new UpdateVehicleInput(
+            "ABC1D23",
+            45000,
             "Fiat",
             "Uno",
             2020,
@@ -417,7 +440,8 @@ class VehicleControllerTest {
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
             {
-              "purchasePrice": 35000.00
+              "purchasePrice": 35000.00,
+              "mileage": 52000
             }
             """)
         .exchange();
@@ -431,7 +455,10 @@ class VehicleControllerTest {
               "version": 5
             }
             """);
-    verify(readmitVehicle).execute(VEHICLE_ID, new ReadmitVehicleInput(new BigDecimal("35000.00")));
+    verify(readmitVehicle).execute(VEHICLE_ID, new ReadmitVehicleInput(
+        new BigDecimal("35000.00"),
+        52000
+    ));
   }
 
   @Test

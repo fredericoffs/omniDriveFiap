@@ -1,6 +1,8 @@
 package br.com.fiap.omnidrive.infrastructure.persistence;
 
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -29,6 +31,13 @@ class VehicleEntity {
 
   @Id
   private UUID id;
+
+  @Column(updatable = false)
+  private String chassis;
+
+  private String plate;
+
+  private int mileage;
 
   private String brand;
 
@@ -63,8 +72,12 @@ class VehicleEntity {
   protected VehicleEntity() {
   }
 
-  VehicleEntity(UUID id) {
+  VehicleEntity(
+      UUID id,
+      Chassis chassis
+  ) {
     this.id = id;
+    this.chassis = chassis.value();
   }
 
   /**
@@ -76,6 +89,8 @@ class VehicleEntity {
     model = vehicle.getModel();
     year = (short) vehicle.getYear();
     color = vehicle.getColor();
+    plate = vehicle.getPlate().value();
+    mileage = vehicle.getMileage();
     purchasePrice = vehicle.getPurchasePrice().amount();
     salePrice = vehicle.getSalePrice().amount();
     status = vehicle.getStatus();
@@ -93,12 +108,15 @@ class VehicleEntity {
         model,
         year,
         color,
+        new Plate(plate),
+        mileage,
         new Money(purchasePrice),
         new Money(salePrice),
         origin
     );
     return Vehicle.restore(
         id,
+        new Chassis(chassis),
         details,
         status,
         currentSaleId,

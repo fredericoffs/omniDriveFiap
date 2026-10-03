@@ -5,13 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -28,6 +32,8 @@ import org.springframework.context.annotation.Import;
 @Import({TestcontainersConfiguration.class, JpaVehicleGateway.class})
 class JpaVehicleGatewayTest {
 
+  private static final AtomicInteger SEQUENCE = new AtomicInteger(1000);
+
   @Autowired
   private JpaVehicleGateway gateway;
 
@@ -35,15 +41,47 @@ class JpaVehicleGatewayTest {
   private TestEntityManager entityManager;
 
   private static Vehicle register(String salePrice) {
-    return Vehicle.register(new VehicleDetails(
+    var sequence = SEQUENCE.incrementAndGet();
+    return register(
+        salePrice,
+        "9BWZZZ377LT00" + sequence,
+        "ABC" + sequence
+    );
+  }
+
+  private static Vehicle register(
+      String salePrice,
+      String chassis,
+      String plate
+  ) {
+    return Vehicle.register(
+        new Chassis(chassis),
+        new VehicleDetails(
             "Fiat",
             "Uno",
             2020,
             "Prata",
+            new Plate(plate),
+            45000,
             Money.of("30000"),
             Money.of(salePrice),
             VehicleOrigin.OWNED
-        ));
+        )
+    );
+  }
+
+  private static VehicleDetails newDetails() {
+    return new VehicleDetails(
+        "Volkswagen",
+        "Gol",
+        2020,
+        "Branco",
+        new Plate("BRA2E19"),
+        46000,
+        Money.of("25000"),
+        Money.of("32000"),
+        VehicleOrigin.CONSIGNED
+    );
   }
 
   private static Vehicle available(String salePrice) {
@@ -61,6 +99,9 @@ class JpaVehicleGatewayTest {
     flushAndClear();
 
     var found = gateway.findById(vehicle.getId()).orElseThrow();
+    assertThat(found.getChassis()).isEqualTo(vehicle.getChassis());
+    assertThat(found.getPlate()).isEqualTo(vehicle.getPlate());
+    assertThat(found.getMileage()).isEqualTo(45000);
     assertThat(found.getBrand()).isEqualTo("Fiat");
     assertThat(found.getModel()).isEqualTo("Uno");
     assertThat(found.getYear()).isEqualTo(2020);
@@ -80,21 +121,15 @@ class JpaVehicleGatewayTest {
     flushAndClear();
 
     var found = gateway.findById(vehicle.getId()).orElseThrow();
-    found.update(new VehicleDetails(
-            "Volkswagen",
-            "Gol",
-            2019,
-            "Branco",
-            Money.of("25000"),
-            Money.of("32000"),
-            VehicleOrigin.CONSIGNED
-        ));
+    found.update(newDetails());
     found.startPreparation();
     gateway.save(found);
     flushAndClear();
 
     var updated = gateway.findById(vehicle.getId()).orElseThrow();
     assertThat(updated.getBrand()).isEqualTo("Volkswagen");
+    assertThat(updated.getPlate()).isEqualTo(new Plate("BRA2E19"));
+    assertThat(updated.getMileage()).isEqualTo(46000);
     assertThat(updated.getSalePrice()).isEqualTo(Money.of("32000"));
     assertThat(updated.getOrigin()).isEqualTo(VehicleOrigin.CONSIGNED);
     assertThat(updated.getStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
@@ -141,15 +176,7 @@ class JpaVehicleGatewayTest {
 
     firstRead.startPreparation();
     gateway.save(firstRead);
-    secondRead.update(new VehicleDetails(
-            "Volkswagen",
-            "Gol",
-            2019,
-            "Branco",
-            Money.of("25000"),
-            Money.of("32000"),
-            VehicleOrigin.CONSIGNED
-        ));
+    secondRead.update(newDetails());
 
     assertThatThrownBy(() -> gateway.save(secondRead))
         .isInstanceOf(ConcurrentUpdateException.class)
@@ -171,13 +198,14 @@ class JpaVehicleGatewayTest {
 
     var sold = gateway.findById(vehicle.getId()).orElseThrow();
     assertThat(sold.getCurrentSaleId()).isEqualTo(saleId);
-    sold.readmit(Money.of("35000"));
+    sold.readmit(Money.of("35000"), 52000);
     gateway.save(sold);
     flushAndClear();
 
     var readmitted = gateway.findById(vehicle.getId()).orElseThrow();
     assertThat(readmitted.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
     assertThat(readmitted.getPurchasePrice()).isEqualTo(Money.of("35000"));
+    assertThat(readmitted.getMileage()).isEqualTo(52000);
     assertThat(readmitted.getCurrentSaleId()).isNull();
     assertThat(statusHistory(vehicle.getId()))
         .containsExactlyInAnyOrder(
@@ -188,6 +216,37 @@ class JpaVehicleGatewayTest {
             VehicleStatus.SOLD,
             VehicleStatus.RECEIVED
         );
+  }
+
+  @Test
+  void checksExistenceByChassisAndPlate() {
+    gateway.save(register("40000", "9BWZZZ377LT004251", "ABC1D23"));
+    flushAndClear();
+
+    assertThat(gateway.existsByChassis(new Chassis("9BWZZZ377LT004251"))).isTrue();
+    assertThat(gateway.existsByChassis(new Chassis("9BWZZZ377LT004252"))).isFalse();
+    assertThat(gateway.existsByPlate(new Plate("ABC1D23"))).isTrue();
+    assertThat(gateway.existsByPlate(new Plate("ABC1D24"))).isFalse();
+  }
+
+  @Test
+  void rejectsDuplicateChassisOnSave() {
+    gateway.save(register("40000", "9BWZZZ377LT004251", "ABC1D23"));
+    var duplicate = register("40000", "9BWZZZ377LT004251", "BRA2E19");
+
+    assertThatThrownBy(() -> gateway.save(duplicate))
+        .isInstanceOf(AlreadyExistsException.class)
+        .hasMessage("Já existe um veículo com o chassi 9BWZZZ377LT004251");
+  }
+
+  @Test
+  void rejectsDuplicatePlateOnSave() {
+    gateway.save(register("40000", "9BWZZZ377LT004251", "ABC1D23"));
+    var duplicate = register("40000", "9BWZZZ377LT004252", "ABC1D23");
+
+    assertThatThrownBy(() -> gateway.save(duplicate))
+        .isInstanceOf(AlreadyExistsException.class)
+        .hasMessage("Já existe um veículo com a placa ABC1D23");
   }
 
   @Test

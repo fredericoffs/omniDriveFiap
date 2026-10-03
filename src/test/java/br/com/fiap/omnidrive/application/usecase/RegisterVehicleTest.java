@@ -9,7 +9,10 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.math.BigDecimal;
@@ -36,6 +39,9 @@ class RegisterVehicleTest {
 
   private static RegisterVehicleInput input(BigDecimal purchasePrice, BigDecimal salePrice) {
     return new RegisterVehicleInput(
+        " 9bwzzz377lt004251 ",
+        "abc-1234",
+        45000,
         "Fiat",
         "Uno",
         2020,
@@ -65,6 +71,9 @@ class RegisterVehicleTest {
     var vehicle = registerVehicle.execute(input(new BigDecimal("30000"), new BigDecimal("40000.5")));
 
     assertThat(vehicle.getId()).isNotNull();
+    assertThat(vehicle.getChassis()).isEqualTo(new Chassis("9BWZZZ377LT004251"));
+    assertThat(vehicle.getPlate()).isEqualTo(new Plate("ABC1234"));
+    assertThat(vehicle.getMileage()).isEqualTo(45000);
     assertThat(vehicle.getBrand()).isEqualTo("Fiat");
     assertThat(vehicle.getModel()).isEqualTo("Uno");
     assertThat(vehicle.getYear()).isEqualTo(2020);
@@ -89,6 +98,30 @@ class RegisterVehicleTest {
     assertThatThrownBy(() -> registerVehicle.execute(registerVehicleInput))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage(expectedMessage);
+
+    verify(vehicleGateway, never()).save(any());
+  }
+
+  @Test
+  void rejectsDuplicateChassis() {
+    when(vehicleGateway.existsByChassis(new Chassis("9BWZZZ377LT004251"))).thenReturn(true);
+    var registerVehicleInput = input(new BigDecimal("30000"), new BigDecimal("40000"));
+
+    assertThatThrownBy(() -> registerVehicle.execute(registerVehicleInput))
+        .isInstanceOf(AlreadyExistsException.class)
+        .hasMessage("Já existe um veículo com o chassi 9BWZZZ377LT004251");
+
+    verify(vehicleGateway, never()).save(any());
+  }
+
+  @Test
+  void rejectsDuplicatePlate() {
+    when(vehicleGateway.existsByPlate(new Plate("ABC1234"))).thenReturn(true);
+    var registerVehicleInput = input(new BigDecimal("30000"), new BigDecimal("40000"));
+
+    assertThatThrownBy(() -> registerVehicle.execute(registerVehicleInput))
+        .isInstanceOf(AlreadyExistsException.class)
+        .hasMessage("Já existe um veículo com a placa ABC1234");
 
     verify(vehicleGateway, never()).save(any());
   }

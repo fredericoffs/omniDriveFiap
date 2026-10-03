@@ -8,8 +8,10 @@ import java.time.ZoneId;
 
 /**
  * Dados cadastrais de um veículo, informados no cadastro e substituídos por inteiro na edição. Os textos são
- * gravados sem espaços nas pontas e o ano fica entre 1900 e o ano seguinte ao atual.
+ * gravados sem espaços nas pontas, o ano fica entre 1900 e o ano seguinte ao atual e a quilometragem não é negativa.
+ * O chassi não faz parte destes dados porque identifica o veículo e não muda na edição.
  *
+ * @param mileage       quilometragem, em km
  * @param purchasePrice valor de entrada: quanto a loja pagou ou acordou com o dono, se consignado
  * @param salePrice     preço de venda anunciado
  * @throws BusinessRuleException se algum dado obrigatório faltar ou for inválido
@@ -19,6 +21,8 @@ public record VehicleDetails(
     String model,
     int year,
     String color,
+    Plate plate,
+    int mileage,
     Money purchasePrice,
     Money salePrice,
     VehicleOrigin origin
@@ -31,6 +35,10 @@ public record VehicleDetails(
     model = requireText(model, "O modelo é obrigatório");
     year = validateYear(year);
     color = requireText(color, "A cor é obrigatória");
+    plate = require(plate, "A placa é obrigatória");
+    if (mileage < 0) {
+      throw new BusinessRuleException("A quilometragem não pode ser negativa");
+    }
     purchasePrice = require(purchasePrice, "O valor de entrada é obrigatório");
     salePrice = require(salePrice, "O preço de venda é obrigatório");
     origin = require(origin, "A origem é obrigatória");
@@ -65,9 +73,22 @@ public record VehicleDetails(
   }
 
   /**
-   * @return uma cópia com o novo valor de entrada, usada na reentrada do veículo
+   * @return uma cópia com o novo valor de entrada e a nova quilometragem, usada na reentrada do veículo
    */
-  public VehicleDetails withPurchasePrice(Money newPurchasePrice) {
-    return new VehicleDetails(brand, model, year, color, newPurchasePrice, salePrice, origin);
+  public VehicleDetails withReadmission(
+      Money newPurchasePrice,
+      int newMileage
+  ) {
+    return new VehicleDetails(
+        brand,
+        model,
+        year,
+        color,
+        plate,
+        newMileage,
+        newPurchasePrice,
+        salePrice,
+        origin
+    );
   }
 }

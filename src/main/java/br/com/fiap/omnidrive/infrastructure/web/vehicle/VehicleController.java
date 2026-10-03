@@ -29,8 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * Endpoints de veículos: cadastro, consulta, edição, preparação, liberação para venda, reentrada e listagem dos
- * veículos à venda.
+ * Endpoints de veículos: cadastro, consulta, edição, preparação, liberação para venda, reentrada e listagem dos veículos à venda.
  */
 @Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação, reentrada e listagem de veículos")
 @RestController
@@ -80,8 +79,14 @@ public class VehicleController {
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @ApiResponse(
+      responseCode = "409",
+      description = "Já existe um veículo com o mesmo chassi ou a mesma placa",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
       responseCode = "422",
-      description = "Dados que violam uma regra de negócio, como ano fora do intervalo permitido",
+      description = "Dados que violam uma regra de negócio, como ano fora do intervalo permitido, placa fora do "
+          + "padrão ou chassi incompatível com o ano",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @PostMapping
@@ -119,7 +124,8 @@ public class VehicleController {
   @Operation(
       summary = "Editar veículo",
       description = """
-          Substitui todos os dados do veículo. Só é permitido com status RECEIVED, IN_PREPARATION ou AVAILABLE. \
+          Substitui todos os dados do veículo, exceto o chassi, que não é editável. Só é permitido com status \
+          RECEIVED, IN_PREPARATION ou AVAILABLE. \
           Envie a versão (campo version) que foi lida: se o veículo mudou desde então, a edição é recusada com \
           409 e o veículo deve ser consultado de novo."""
   )
@@ -136,7 +142,8 @@ public class VehicleController {
   )
   @ApiResponse(
       responseCode = "409",
-      description = "O veículo foi alterado por outra operação depois de lido",
+      description = "O veículo foi alterado por outra operação depois de lido, ou a nova placa pertence a outro "
+          + "veículo",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @ApiResponse(
@@ -207,13 +214,14 @@ public class VehicleController {
   @Operation(
       summary = "Registrar reentrada",
       description = """
-          Registra a volta à loja de um veículo com status SOLD (vendido), com um novo valor de entrada. Ele passa a \
-          RECEIVED e segue de novo pela preparação e pela liberação. O valor de entrada anterior fica no histórico."""
+          Registra a volta à loja de um veículo com status SOLD (vendido), com um novo valor de entrada e a \
+          quilometragem atual, que deve ser maior que a registrada. Ele passa a RECEIVED e segue de novo pela \
+          preparação e pela liberação. O valor de entrada e a quilometragem anteriores ficam no histórico."""
   )
   @ApiResponse(responseCode = "200", description = "Veículo recebido de volta")
   @ApiResponse(
       responseCode = "400",
-      description = "Corpo da requisição inválido ou valor de entrada ausente",
+      description = "Corpo da requisição inválido, ou valor de entrada ou quilometragem ausentes",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @ApiResponse(
@@ -228,7 +236,7 @@ public class VehicleController {
   )
   @ApiResponse(
       responseCode = "422",
-      description = "O veículo não está com status SOLD",
+      description = "O veículo não está com status SOLD, ou a quilometragem não é maior que a atual",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @PostMapping("/{id}/readmission")

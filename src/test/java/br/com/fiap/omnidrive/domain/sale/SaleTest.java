@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -26,11 +28,14 @@ class SaleTest {
 
   private static final Vehicle VEHICLE = Vehicle.restore(
       UUID.randomUUID(),
+      new Chassis("9BWZZZ377LT004251"),
       new VehicleDetails(
           "Fiat",
           "Uno",
           2020,
           "Prata",
+          new Plate("ABC1D23"),
+          45000,
           Money.of("30000"),
           Money.of("40000"),
           VehicleOrigin.OWNED

@@ -7,15 +7,29 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
 /**
- * Corpo da requisição de edição de veículo. Todos os campos são substituídos.
+ * Corpo da requisição de edição de veículo. Todos os campos são substituídos, exceto o chassi, que não é editável.
  */
-@Schema(description = "Novos dados do veículo. Todos os campos são substituídos")
+@Schema(description = "Novos dados do veículo. Todos os campos são substituídos; o chassi não é editável")
 public record UpdateVehicleRequest(
+
+    @Schema(
+        description = "Placa, no padrão antigo (ABC-1234) ou no Mercosul (ABC1D23). Letras minúsculas e hífen são "
+            + "aceitos; a placa é gravada em maiúsculas e sem hífen",
+        example = "ABC1D23"
+    )
+    @NotBlank(message = "A placa é obrigatória")
+    String plate,
+
+    @Schema(description = "Quilometragem, em km", example = "45000")
+    @NotNull(message = "A quilometragem é obrigatória")
+    @PositiveOrZero(message = "A quilometragem não pode ser negativa")
+    Integer mileage,
 
     @Schema(description = "Marca", example = "Fiat", maxLength = 60)
     @NotBlank(message = "A marca é obrigatória")
@@ -62,6 +76,17 @@ public record UpdateVehicleRequest(
 ) {
 
   UpdateVehicleInput toInput() {
-    return new UpdateVehicleInput(brand, model, year, color, purchasePrice, salePrice, origin, version);
+    return new UpdateVehicleInput(
+        plate,
+        mileage,
+        brand,
+        model,
+        year,
+        color,
+        purchasePrice,
+        salePrice,
+        origin,
+        version
+    );
   }
 }

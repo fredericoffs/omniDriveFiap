@@ -13,7 +13,8 @@ import java.util.UUID;
 
 /**
  * Caso de uso: reentrada de um veículo vendido que voltou à loja (Vendido → Recebido). O cadastro é o mesmo, com um
- * novo valor de entrada; o anterior fica registrado no histórico de status.
+ * novo valor de entrada e uma quilometragem maior que a atual; os valores anteriores ficam registrados no histórico de
+ * status.
  */
 public class ReadmitVehicle {
 
@@ -29,7 +30,8 @@ public class ReadmitVehicle {
    * @return o veículo com status Recebido e o novo valor de entrada
    * @throws NotFoundException se não houver veículo com o id informado
    * @throws InvalidStatusTransitionException se o veículo não estiver Vendido
-   * @throws BusinessRuleException se o novo valor de entrada não for informado ou for inválido
+   * @throws BusinessRuleException se o novo valor de entrada ou a quilometragem não forem informados ou forem
+   *     inválidos
    * @throws ConcurrentUpdateException se o veículo foi alterado por outra operação durante a mudança
    */
   public Vehicle execute(
@@ -40,7 +42,10 @@ public class ReadmitVehicle {
     Objects.requireNonNull(input);
     var vehicle = vehicleGateway.findById(id)
         .orElseThrow(() -> new NotFoundException("Veículo não encontrado: " + id));
-    vehicle.readmit(Money.ofNullable(input.purchasePrice()));
+    vehicle.readmit(
+        Money.ofNullable(input.purchasePrice()),
+        input.mileage()
+    );
     return vehicleGateway.save(vehicle);
   }
 }

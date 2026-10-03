@@ -12,6 +12,8 @@ import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
+import br.com.fiap.omnidrive.domain.vehicle.Chassis;
+import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
@@ -35,7 +37,10 @@ class ReadmitVehicleTest {
 
   private static final UUID SALE_ID = UUID.randomUUID();
 
-  private static final ReadmitVehicleInput INPUT = new ReadmitVehicleInput(new BigDecimal("35000"));
+  private static final ReadmitVehicleInput INPUT = new ReadmitVehicleInput(
+      new BigDecimal("35000"),
+      52000
+  );
 
   @Mock
   private VehicleGateway vehicleGateway;
@@ -48,11 +53,14 @@ class ReadmitVehicleTest {
   ) {
     return Vehicle.restore(
         VEHICLE_ID,
+        new Chassis("9BWZZZ377LT004251"),
         new VehicleDetails(
             "Fiat",
             "Uno",
             2020,
             "Prata",
+            new Plate("ABC1D23"),
+            45000,
             Money.of("30000"),
             Money.of("40000"),
             VehicleOrigin.OWNED
@@ -77,13 +85,14 @@ class ReadmitVehicleTest {
 
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
     assertThat(vehicle.getPurchasePrice()).isEqualTo(Money.of("35000"));
+    assertThat(vehicle.getMileage()).isEqualTo(52000);
     assertThat(vehicle.getSalePrice()).isEqualTo(Money.of("40000"));
     assertThat(vehicle.getStatusChanges())
         .singleElement()
         .satisfies(history -> {
           assertThat(history.previousStatus()).isEqualTo(VehicleStatus.SOLD);
           assertThat(history.newStatus()).isEqualTo(VehicleStatus.RECEIVED);
-          assertThat(history.reason()).contains("30000.00");
+          assertThat(history.reason()).contains("30000.00", "45000 km");
         });
     verify(vehicleGateway).save(vehicle);
   }
@@ -110,11 +119,28 @@ class ReadmitVehicleTest {
   @Test
   void requiresNewPurchasePrice() {
     when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.SOLD, SALE_ID)));
-    var inputWithoutPrice = new ReadmitVehicleInput(null);
+    var inputWithoutPrice = new ReadmitVehicleInput(
+        null,
+        52000
+    );
 
     assertThatThrownBy(() -> readmitVehicle.execute(VEHICLE_ID, inputWithoutPrice))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage("O valor de entrada é obrigatório");
+    verify(vehicleGateway, never()).save(any());
+  }
+
+  @Test
+  void doesNotSaveWhenMileageIsNotGreater() {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.SOLD, SALE_ID)));
+    var inputWithSameMileage = new ReadmitVehicleInput(
+        new BigDecimal("35000"),
+        45000
+    );
+
+    assertThatThrownBy(() -> readmitVehicle.execute(VEHICLE_ID, inputWithSameMileage))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("A quilometragem da reentrada deve ser maior que a atual (45000 km)");
     verify(vehicleGateway, never()).save(any());
   }
 }
