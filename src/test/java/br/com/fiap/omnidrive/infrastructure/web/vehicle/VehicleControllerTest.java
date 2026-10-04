@@ -8,19 +8,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
-import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
-import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
-import br.com.fiap.omnidrive.application.usecase.ReadmitVehicleInput;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
-import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
-import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicleInput;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
-import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
 import br.com.fiap.omnidrive.domain.vehicle.Plate;
@@ -29,7 +23,6 @@ import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -44,7 +37,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
- * Testes da camada web de veículos: contrato JSON, validação do corpo e conversão das exceções em status HTTP.
+ * Testes da camada web de cadastro de veículos: contrato JSON, validação do corpo e conversão das exceções em
+ * status HTTP.
  */
 @WebMvcTest(VehicleController.class)
 class VehicleControllerTest {
@@ -92,18 +86,6 @@ class VehicleControllerTest {
 
   @MockitoBean
   private UpdateVehicle updateVehicle;
-
-  @MockitoBean
-  private StartVehiclePreparation startVehiclePreparation;
-
-  @MockitoBean
-  private ReleaseVehicleForSale releaseVehicleForSale;
-
-  @MockitoBean
-  private ReadmitVehicle readmitVehicle;
-
-  @MockitoBean
-  private ListVehiclesForSale listVehiclesForSale;
 
   private static Vehicle vehicle(
       String salePrice,
@@ -375,121 +357,5 @@ class VehicleControllerTest {
         .bodyJson()
         .extractingPath("$.detail")
         .isEqualTo("Valor inválido para o parâmetro id");
-  }
-
-  @Test
-  void startsPreparation() {
-    when(startVehiclePreparation.execute(VEHICLE_ID)).thenReturn(vehicle("40000", VehicleStatus.IN_PREPARATION, 1));
-
-    var response = mvc.post().uri("/vehicles/{id}/preparation", VEHICLE_ID).exchange();
-
-    assertThat(response)
-        .hasStatus(HttpStatus.OK)
-        .bodyJson()
-        .isLenientlyEqualTo("""
-            {
-              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
-              "status": "IN_PREPARATION",
-              "version": 1
-            }
-            """);
-  }
-
-  @Test
-  void releasesForSale() {
-    when(releaseVehicleForSale.execute(VEHICLE_ID)).thenReturn(vehicle("40000", VehicleStatus.AVAILABLE, 2));
-
-    var response = mvc.post().uri("/vehicles/{id}/release", VEHICLE_ID).exchange();
-
-    assertThat(response)
-        .hasStatus(HttpStatus.OK)
-        .bodyJson()
-        .isLenientlyEqualTo("""
-            {
-              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
-              "status": "AVAILABLE",
-              "version": 2
-            }
-            """);
-  }
-
-  @Test
-  void returnsUnprocessableContentForInvalidStatusTransition() {
-    when(releaseVehicleForSale.execute(VEHICLE_ID))
-        .thenThrow(new InvalidStatusTransitionException("Transição inválida de RECEIVED para AVAILABLE"));
-
-    var response = mvc.post().uri("/vehicles/{id}/release", VEHICLE_ID).exchange();
-
-    assertThat(response)
-        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
-        .bodyJson()
-        .isLenientlyEqualTo("""
-            {
-              "status": 422,
-              "title": "Regra de negócio violada",
-              "detail": "Transição inválida de RECEIVED para AVAILABLE"
-            }
-            """);
-  }
-
-  @Test
-  void readmitsVehicleSendingNewPurchasePriceToUseCase() {
-    when(readmitVehicle.execute(eq(VEHICLE_ID), any())).thenReturn(vehicle("40000", VehicleStatus.RECEIVED, 5));
-
-    var response = mvc.post().uri("/vehicles/{id}/readmission", VEHICLE_ID)
-        .contentType(MediaType.APPLICATION_JSON)
-        .content("""
-            {
-              "purchasePrice": 35000.00,
-              "mileage": 52000
-            }
-            """)
-        .exchange();
-
-    assertThat(response)
-        .hasStatus(HttpStatus.OK)
-        .bodyJson()
-        .isLenientlyEqualTo("""
-            {
-              "status": "RECEIVED",
-              "version": 5
-            }
-            """);
-    verify(readmitVehicle).execute(VEHICLE_ID, new ReadmitVehicleInput(
-        new BigDecimal("35000.00"),
-        52000
-    ));
-  }
-
-  @Test
-  void requiresPurchasePriceOnReadmission() {
-    var response = mvc.post().uri("/vehicles/{id}/readmission", VEHICLE_ID)
-        .contentType(MediaType.APPLICATION_JSON)
-        .content("{}")
-        .exchange();
-
-    assertThat(response)
-        .hasStatus(HttpStatus.BAD_REQUEST)
-        .bodyJson()
-        .extractingPath("$.errors.purchasePrice")
-        .isEqualTo("O valor de entrada é obrigatório");
-    verifyNoInteractions(readmitVehicle);
-  }
-
-  @Test
-  void listsVehiclesForSaleKeepingUseCaseOrder() {
-    when(listVehiclesForSale.execute()).thenReturn(List.of(
-        vehicle("20000", VehicleStatus.AVAILABLE, 1),
-        vehicle("35000", VehicleStatus.AVAILABLE, 1)
-    ));
-
-    var response = mvc.get().uri("/vehicles/for-sale").exchange();
-
-    assertThat(response)
-        .hasStatus(HttpStatus.OK)
-        .bodyJson()
-        .extractingPath("$[*].salePrice")
-        .asArray()
-        .containsExactly(20000.00, 35000.00);
   }
 }
