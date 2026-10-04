@@ -5,12 +5,13 @@ import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.application.gateway.TransactionRunner;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
+import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registra os casos de uso de venda como beans. Os casos de uso são Java puro e não conhecem o Spring; a ligação com a
- * infraestrutura acontece só aqui.
+ * Registra os casos de uso de venda e de pagamento como beans. Os casos de uso são Java puro e não conhecem o Spring;
+ * a ligação com a infraestrutura acontece só aqui.
  */
 @Configuration(proxyBeanMethods = false)
 public class SaleUseCaseConfig {
@@ -26,6 +27,21 @@ public class SaleUseCaseConfig {
         vehicleGateway,
         saleGateway,
         paymentGateway,
+        transactionRunner
+    );
+  }
+
+  @Bean
+  ProcessPaymentResult processPaymentResult(
+      PaymentGateway paymentGateway,
+      SaleGateway saleGateway,
+      VehicleGateway vehicleGateway,
+      TransactionRunner transactionRunner
+  ) {
+    return new ProcessPaymentResult(
+        paymentGateway,
+        saleGateway,
+        vehicleGateway,
         transactionRunner
     );
   }

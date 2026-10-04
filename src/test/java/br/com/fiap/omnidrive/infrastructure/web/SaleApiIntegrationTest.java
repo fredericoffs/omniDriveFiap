@@ -15,8 +15,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 /**
  * Testes de ponta a ponta da API de vendas, com a aplicação completa e o Postgres do Testcontainers.
  *
- * <p>Pela API, um veículo só chega a Vendido com o webhook de pagamento; até lá, os testes conferem que um veículo
- * Reservado fica fora das listagens.
+ * <p>Aqui o veículo fica Reservado, e os testes conferem que ele sai das listagens. O caminho até Vendido, pelo
+ * webhook de pagamento, está no {@link PaymentWebhookApiIntegrationTest}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
