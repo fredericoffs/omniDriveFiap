@@ -4,6 +4,7 @@ import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.domain.sale.Sale;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,12 @@ public class JpaSaleGateway implements SaleGateway {
   @Transactional
   public Sale save(Sale sale) {
     return saleRepository.save(SaleEntity.from(sale)).toDomain();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Sale> findById(UUID id) {
+    return saleRepository.findById(id).map(SaleEntity::toDomain);
   }
 
   @Override

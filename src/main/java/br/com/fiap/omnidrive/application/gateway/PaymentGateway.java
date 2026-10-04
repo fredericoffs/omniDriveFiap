@@ -2,9 +2,11 @@ package br.com.fiap.omnidrive.application.gateway;
 
 import br.com.fiap.omnidrive.domain.sale.Payment;
 
+import java.util.Optional;
+
 /**
  * Persistência de pagamentos, implementada pela camada de infraestrutura. O pagamento tem gateway próprio porque o
- * webhook trabalha só com ele, sem carregar a venda.
+ * webhook o busca pelo código e o grava com a própria versão, separado da venda.
  */
 public interface PaymentGateway {
 
@@ -17,4 +19,9 @@ public interface PaymentGateway {
    *     operação depois de lido
    */
   Payment save(Payment payment);
+
+  /**
+   * Busca um pagamento pelo código que o processador de pagamento usa no webhook.
+   */
+  Optional<Payment> findByPaymentCode(String paymentCode);
 }

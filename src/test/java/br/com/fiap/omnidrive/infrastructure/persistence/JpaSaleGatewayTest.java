@@ -100,6 +100,27 @@ class JpaSaleGatewayTest {
   }
 
   @Test
+  void findsSaleById() {
+    var saved = gateway.save(sale(vehicleGateway.save(available())));
+    entityManager.flush();
+    entityManager.clear();
+
+    var found = gateway.findById(saved.getId());
+
+    assertThat(found)
+        .get()
+        .satisfies(sale -> {
+          assertThat(sale.getVehicleId()).isEqualTo(saved.getVehicleId());
+          assertThat(sale.getAmount()).isEqualTo(Money.of("40000.50"));
+        });
+  }
+
+  @Test
+  void returnsEmptyWhenSaleDoesNotExist() {
+    assertThat(gateway.findById(UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
   void findsSalesByIdIgnoringUnknownIds() {
     var first = gateway.save(sale(vehicleGateway.save(available("9BWZZZ377LT004252", "ABC1D24"))));
     var second = gateway.save(sale(vehicleGateway.save(available("9BWZZZ377LT004253", "ABC1D25"))));

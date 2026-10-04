@@ -7,6 +7,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 /**
  * Implementação do {@link PaymentGateway} com JPA, com controle de concorrência otimista pela coluna {@code version}:
  * a gravação é recusada se a versão do pagamento recebido não for a que está no banco. É isso que impede dois
@@ -39,6 +41,12 @@ public class JpaPaymentGateway implements PaymentGateway {
     } catch (OptimisticLockingFailureException _) {
       throw concurrentUpdate(payment);
     }
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Payment> findByPaymentCode(String paymentCode) {
+    return paymentRepository.findByPaymentCode(paymentCode).map(PaymentEntity::toDomain);
   }
 
   private PaymentEntity loadWithSameVersion(Payment payment) {

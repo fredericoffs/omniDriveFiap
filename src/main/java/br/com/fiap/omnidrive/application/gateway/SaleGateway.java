@@ -4,6 +4,7 @@ import br.com.fiap.omnidrive.domain.sale.Sale;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -17,6 +18,11 @@ public interface SaleGateway {
    * @return a venda como ficou gravada
    */
   Sale save(Sale sale);
+
+  /**
+   * Busca uma venda pelo id.
+   */
+  Optional<Sale> findById(UUID id);
 
   /**
    * Busca as vendas com os ids informados, sem ordem definida. Ids sem venda são ignorados.
