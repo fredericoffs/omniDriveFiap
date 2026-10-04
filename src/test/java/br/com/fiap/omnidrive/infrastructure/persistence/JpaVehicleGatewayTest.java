@@ -196,17 +196,8 @@ class JpaVehicleGatewayTest {
 
   @Test
   void savesReadmissionOfSoldVehicle() {
-    var vehicle = gateway.save(available("40000"));
-    var saleId = saleGateway.save(
-        Sale.create(
-            vehicle,
-            new Cpf("52998224725"),
-            LocalDate.of(2026, 10, 1)
-        )
-    ).getId();
-    vehicle.reserve(saleId);
-    vehicle.confirmSale(saleId);
-    gateway.save(vehicle);
+    var vehicle = sold("40000");
+    var saleId = vehicle.getCurrentSaleId();
     flushAndClear();
 
     var sold = gateway.findById(vehicle.getId()).orElseThrow();
@@ -229,6 +220,27 @@ class JpaVehicleGatewayTest {
             VehicleStatus.SOLD,
             VehicleStatus.RECEIVED
         );
+  }
+
+  @Test
+  void findsOnlySoldVehiclesOrderedByCurrentSaleAmount() {
+    var expensive = sold("50000");
+    var cheap = sold("20000");
+    var middle = sold("35000");
+    var reserved = gateway.save(available("15000"));
+    reserved.reserve(saveSale(reserved));
+    gateway.save(reserved);
+    var readmitted = sold("10000");
+    readmitted.readmit(Money.of("8000"), 50000);
+    gateway.save(readmitted);
+    gateway.save(available("5000"));
+    flushAndClear();
+
+    var vehicles = gateway.findSoldOrderBySaleAmount();
+
+    assertThat(vehicles)
+        .extracting(Vehicle::getId)
+        .containsExactly(cheap.getId(), middle.getId(), expensive.getId());
   }
 
   @Test
@@ -275,6 +287,24 @@ class JpaVehicleGatewayTest {
   @Test
   void returnsEmptyWhenVehicleDoesNotExist() {
     assertThat(gateway.findById(UUID.randomUUID())).isEmpty();
+  }
+
+  private UUID saveSale(Vehicle vehicle) {
+    return saleGateway.save(
+        Sale.create(
+            vehicle,
+            new Cpf("52998224725"),
+            LocalDate.of(2026, 10, 1)
+        )
+    ).getId();
+  }
+
+  private Vehicle sold(String salePrice) {
+    var vehicle = gateway.save(available(salePrice));
+    var saleId = saveSale(vehicle);
+    vehicle.reserve(saleId);
+    vehicle.confirmSale(saleId);
+    return gateway.save(vehicle);
   }
 
   private void flushAndClear() {

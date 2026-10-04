@@ -12,7 +12,9 @@ import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -39,14 +41,24 @@ class JpaSaleGatewayTest {
   private TestEntityManager entityManager;
 
   private static Vehicle available() {
+    return available(
+        "9BWZZZ377LT004251",
+        "ABC1D23"
+    );
+  }
+
+  private static Vehicle available(
+      String chassis,
+      String plate
+  ) {
     var vehicle = Vehicle.register(
-        new Chassis("9BWZZZ377LT004251"),
+        new Chassis(chassis),
         new VehicleDetails(
             "Fiat",
             "Uno",
             2020,
             "Prata",
-            new Plate("ABC1D23"),
+            new Plate(plate),
             45000,
             Money.of("30000"),
             Money.of("40000.50"),
@@ -56,6 +68,14 @@ class JpaSaleGatewayTest {
     vehicle.startPreparation();
     vehicle.releaseForSale();
     return vehicle;
+  }
+
+  private static Sale sale(Vehicle vehicle) {
+    return Sale.create(
+        vehicle,
+        new Cpf("52998224725"),
+        LocalDate.of(2026, 10, 1)
+    );
   }
 
   @Test
@@ -77,5 +97,19 @@ class JpaSaleGatewayTest {
     assertThat(found.getBuyerCpf()).isEqualTo(new Cpf("52998224725"));
     assertThat(found.getSaleDate()).isEqualTo(LocalDate.of(2026, 10, 1));
     assertThat(found.getAmount()).isEqualTo(Money.of("40000.50"));
+  }
+
+  @Test
+  void findsSalesByIdIgnoringUnknownIds() {
+    var first = gateway.save(sale(vehicleGateway.save(available("9BWZZZ377LT004252", "ABC1D24"))));
+    var second = gateway.save(sale(vehicleGateway.save(available("9BWZZZ377LT004253", "ABC1D25"))));
+    entityManager.flush();
+    entityManager.clear();
+
+    var found = gateway.findAllById(List.of(first.getId(), second.getId(), UUID.randomUUID()));
+
+    assertThat(found)
+        .extracting(Sale::getId)
+        .containsExactlyInAnyOrder(first.getId(), second.getId());
   }
 }

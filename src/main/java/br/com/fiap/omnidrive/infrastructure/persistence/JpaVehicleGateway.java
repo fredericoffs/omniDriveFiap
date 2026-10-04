@@ -113,6 +113,14 @@ public class JpaVehicleGateway implements VehicleGateway {
         .toList();
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public List<Vehicle> findSoldOrderBySaleAmount() {
+    return vehicleRepository.findByStatusOrderByCurrentSaleAmount(VehicleStatus.SOLD).stream()
+        .map(VehicleEntity::toDomain)
+        .toList();
+  }
+
   private VehicleEntity loadWithSameVersion(Vehicle vehicle) {
     var entity = vehicleRepository.findById(vehicle.getId())
         .orElseThrow(() -> concurrentUpdate(vehicle));

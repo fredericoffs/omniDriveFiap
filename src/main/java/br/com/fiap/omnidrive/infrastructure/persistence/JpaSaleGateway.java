@@ -2,12 +2,15 @@ package br.com.fiap.omnidrive.infrastructure.persistence;
 
 import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.domain.sale.Sale;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementação do {@link SaleGateway} com JPA. A venda é só inserida, e a gravação entra na transação em andamento
- * quando houver uma, como a do caso de uso efetuar venda.
+ * Implementação do {@link SaleGateway} com JPA. A venda é só inserida, e a gravação entra na transação em andamento quando houver uma, como a do caso
+ * de uso efetuar venda.
  */
 @Component
 public class JpaSaleGateway implements SaleGateway {
@@ -22,5 +25,13 @@ public class JpaSaleGateway implements SaleGateway {
   @Transactional
   public Sale save(Sale sale) {
     return saleRepository.save(SaleEntity.from(sale)).toDomain();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<Sale> findAllById(Collection<UUID> ids) {
+    return saleRepository.findAllById(ids).stream()
+        .map(SaleEntity::toDomain)
+        .toList();
   }
 }
