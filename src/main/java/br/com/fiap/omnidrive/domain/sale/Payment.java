@@ -1,6 +1,7 @@
 package br.com.fiap.omnidrive.domain.sale;
 
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
+import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -19,6 +20,15 @@ import java.util.UUID;
  *     <li>Qualquer outra combinação: {@link InvalidStatusTransitionException}. Os estados terminais não são
  *     reconciliados.</li>
  * </ul>
+ *
+ * <p>Efeito de cada status no veículo ({@link #applyTo(Vehicle)}), só quando a venda deste pagamento é a venda atual
+ * do veículo:
+ * <ul>
+ *     <li>Pago: Reservado → Vendido</li>
+ *     <li>Recusado ou Cancelado: Reservado → Disponível</li>
+ *     <li>Estornado: Vendido → Disponível</li>
+ * </ul>
+ * O pagamento de uma venda antiga muda só o próprio status, e o veículo fica como está.
  */
 public class Payment {
 
@@ -82,6 +92,29 @@ public class Payment {
       return false;
     }
     status = next;
+    return true;
+  }
+
+  /**
+   * Aplica ao veículo o efeito do status atual do pagamento. Deve ser chamado só depois de um
+   * {@link #register(PaymentResult)} que mudou o status: numa repetição, o veículo já recebeu o efeito.
+   *
+   * @return {@code true} se o veículo mudou de status, {@code false} se a venda deste pagamento não é a venda atual
+   *     do veículo ou se o pagamento ainda aguarda o resultado
+   * @throws InvalidStatusTransitionException se o status do veículo não permitir o efeito
+   */
+  public boolean applyTo(Vehicle vehicle) {
+    if (!vehicle.isCurrentSale(saleId)) {
+      return false;
+    }
+    switch (status) {
+      case AWAITING_PAYMENT -> {
+        return false;
+      }
+      case PAID -> vehicle.confirmSale(saleId);
+      case DECLINED, CANCELED -> vehicle.releaseReservation(saleId);
+      case REFUNDED -> vehicle.reverseSale(saleId);
+    }
     return true;
   }
 
