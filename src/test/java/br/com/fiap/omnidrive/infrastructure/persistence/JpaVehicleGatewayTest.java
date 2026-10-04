@@ -4,15 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
+import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
+import br.com.fiap.omnidrive.domain.sale.Sale;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
 import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,6 +25,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 
 /**
  * Testes de integração do {@link JpaVehicleGateway} contra o Postgres do Testcontainers, com o schema das
@@ -29,13 +33,16 @@ import org.springframework.context.annotation.Import;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({TestcontainersConfiguration.class, JpaVehicleGateway.class})
+@Import({TestcontainersConfiguration.class, JpaVehicleGateway.class, JpaSaleGateway.class})
 class JpaVehicleGatewayTest {
 
   private static final AtomicInteger SEQUENCE = new AtomicInteger(1000);
 
   @Autowired
   private JpaVehicleGateway gateway;
+
+  @Autowired
+  private JpaSaleGateway saleGateway;
 
   @Autowired
   private TestEntityManager entityManager;
@@ -189,8 +196,14 @@ class JpaVehicleGatewayTest {
 
   @Test
   void savesReadmissionOfSoldVehicle() {
-    var saleId = UUID.randomUUID();
-    var vehicle = available("40000");
+    var vehicle = gateway.save(available("40000"));
+    var saleId = saleGateway.save(
+        Sale.create(
+            vehicle,
+            new Cpf("52998224725"),
+            LocalDate.of(2026, 10, 1)
+        )
+    ).getId();
     vehicle.reserve(saleId);
     vehicle.confirmSale(saleId);
     gateway.save(vehicle);
@@ -216,6 +229,16 @@ class JpaVehicleGatewayTest {
             VehicleStatus.SOLD,
             VehicleStatus.RECEIVED
         );
+  }
+
+  @Test
+  void rejectsCurrentSaleThatDoesNotExist() {
+    var vehicle = gateway.save(available("40000"));
+    vehicle.reserve(UUID.randomUUID());
+
+    assertThatThrownBy(() -> gateway.save(vehicle))
+        .isInstanceOf(DataIntegrityViolationException.class)
+        .hasMessageContaining("fk_vehicle_current_sale");
   }
 
   @Test
