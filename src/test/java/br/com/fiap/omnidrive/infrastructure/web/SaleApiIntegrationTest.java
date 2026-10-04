@@ -14,6 +14,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
  * Testes de ponta a ponta da API de vendas, com a aplicação completa e o Postgres do Testcontainers.
+ *
+ * <p>Pela API, um veículo só chega a Vendido com o webhook de pagamento; até lá, os testes conferem que um veículo
+ * Reservado fica fora das listagens.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -34,7 +37,7 @@ class SaleApiIntegrationTest {
   }
 
   @Test
-  void sellsAvailableVehicleReservingItAndRemovingItFromListing() {
+  void sellsAvailableVehicleReservingItAndRemovingItFromListings() {
     var vehicleId = availableVehicle("SAL2001", "Citroen");
 
     var sold = mvc.post().uri("/sales")
@@ -67,6 +70,14 @@ class SaleApiIntegrationTest {
         .hasStatus(HttpStatus.OK)
         .bodyJson()
         .extractingPath("$[*].id")
+        .asArray()
+        .doesNotContain(vehicleId);
+
+    var soldVehicles = mvc.get().uri("/vehicles/sold").exchange();
+    assertThat(soldVehicles)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$[*].vehicle.id")
         .asArray()
         .doesNotContain(vehicleId);
   }
