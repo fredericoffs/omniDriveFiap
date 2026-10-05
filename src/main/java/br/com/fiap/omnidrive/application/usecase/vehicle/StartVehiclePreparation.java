@@ -10,7 +10,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Caso de uso: iniciar a preparação de um veículo recebido (Recebido → Em Preparação).
+ * Caso de uso: iniciar a preparação de um veículo recebido (Recebido → Em Preparação) ou retirar da vitrine um veículo
+ * disponível para reparo (Disponível → Em Preparação).
  */
 public class StartVehiclePreparation {
 
@@ -25,7 +26,7 @@ public class StartVehiclePreparation {
    *
    * @return o veículo com o novo status
    * @throws NotFoundException se não houver veículo com o id informado
-   * @throws InvalidStatusTransitionException se o veículo não estiver Recebido
+   * @throws InvalidStatusTransitionException se o veículo não estiver Recebido nem Disponível
    * @throws ConcurrentUpdateException se o veículo foi alterado por outra operação durante a mudança
    */
   public Vehicle execute(UUID id) {

@@ -143,6 +143,39 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void withdrawsAvailableVehicleForRepairAndReleasesItAgain() {
+    var location = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("REP1008", "Volvo", null))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+    assert location != null;
+    var vehicleId = location.substring(location.lastIndexOf('/') + 1);
+    assertThat(mvc.post().uri(location + "/preparation").exchange()).hasStatus(HttpStatus.OK);
+    assertThat(mvc.post().uri(location + "/release").exchange()).hasStatus(HttpStatus.OK);
+
+    var withdrawn = mvc.post().uri(location + "/preparation").exchange();
+    assertThat(withdrawn)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("IN_PREPARATION");
+    assertThat(mvc.get().uri("/vehicles/for-sale?size=100").exchange())
+        .bodyJson()
+        .extractingPath("$.content[*].id")
+        .asArray()
+        .doesNotContain(vehicleId);
+
+    assertThat(mvc.post().uri(location + "/release").exchange()).hasStatus(HttpStatus.OK);
+    assertThat(mvc.get().uri("/vehicles/for-sale?size=100").exchange())
+        .bodyJson()
+        .extractingPath("$.content[*].id")
+        .asArray()
+        .contains(vehicleId);
+  }
+
+  @Test
   void rejectsReadmissionOfVehicleThatWasNotSold() {
     var location = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)

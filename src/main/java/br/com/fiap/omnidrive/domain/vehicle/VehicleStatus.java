@@ -1,7 +1,8 @@
 package br.com.fiap.omnidrive.domain.vehicle;
 
 /**
- * Status do veículo na loja: Recebido → Em Preparação → Disponível → Reservado → Vendido. As transições permitidas ficam em {@link Vehicle}.
+ * Status do veículo na loja: Recebido → Em Preparação → Disponível → Reservado → Vendido, com a volta de Disponível para Em
+ * Preparação para reparo. As transições permitidas ficam em {@link Vehicle}.
  */
 public enum VehicleStatus {
 
@@ -11,7 +12,8 @@ public enum VehicleStatus {
   RECEIVED(true),
 
   /**
-   * Em revisão, higienização ou funilaria. Todos os veículos passam por aqui.
+   * Em revisão, higienização ou funilaria. Todos os veículos passam por aqui, e um veículo Disponível volta para cá
+   * quando sai da vitrine para reparo.
    */
   IN_PREPARATION(true),
 

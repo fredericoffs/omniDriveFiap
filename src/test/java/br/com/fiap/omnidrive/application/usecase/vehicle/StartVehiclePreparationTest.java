@@ -22,6 +22,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -64,9 +66,10 @@ class StartVehiclePreparationTest {
     startVehiclePreparation = new StartVehiclePreparation(vehicleGateway);
   }
 
-  @Test
-  void movesReceivedVehicleToPreparationAndSavesIt() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.RECEIVED)));
+  @ParameterizedTest
+  @EnumSource(names = {"RECEIVED", "AVAILABLE"})
+  void movesVehicleToPreparationAndSavesIt(VehicleStatus previous) {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(previous)));
     when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     var vehicle = startVehiclePreparation.execute(VEHICLE_ID);
@@ -75,7 +78,7 @@ class StartVehiclePreparationTest {
     assertThat(vehicle.getStatusChanges())
         .singleElement()
         .satisfies(history -> {
-          assertThat(history.previousStatus()).isEqualTo(VehicleStatus.RECEIVED);
+          assertThat(history.previousStatus()).isEqualTo(previous);
           assertThat(history.newStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
         });
     verify(vehicleGateway).save(vehicle);
@@ -93,7 +96,7 @@ class StartVehiclePreparationTest {
 
   @Test
   void doesNotSaveWhenStatusDoesNotAllowTransition() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.IN_PREPARATION)));
 
     assertThatThrownBy(() -> startVehiclePreparation.execute(VEHICLE_ID))
         .isInstanceOf(InvalidStatusTransitionException.class);

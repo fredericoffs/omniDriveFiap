@@ -43,7 +43,10 @@ public class VehicleStatusController {
 
   @Operation(
       summary = "Iniciar preparação",
-      description = "Coloca em preparação um veículo com status RECEIVED (recebido). Ele passa a IN_PREPARATION."
+      description = """
+          Coloca em preparação um veículo com status RECEIVED (recebido), na entrada, ou AVAILABLE (disponível), \
+          quando ele sai da vitrine para reparo. Ele passa a IN_PREPARATION e deixa de aparecer na listagem à \
+          venda até ser liberado de novo. O motivo fica registrado no histórico de status."""
   )
   @ApiResponse(responseCode = "200", description = "Veículo em preparação")
   @ApiResponse(
@@ -58,7 +61,7 @@ public class VehicleStatusController {
   )
   @ApiResponse(
       responseCode = "422",
-      description = "O veículo não está com status RECEIVED",
+      description = "O veículo não está com status RECEIVED nem AVAILABLE",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @PostMapping("/{id}/preparation")

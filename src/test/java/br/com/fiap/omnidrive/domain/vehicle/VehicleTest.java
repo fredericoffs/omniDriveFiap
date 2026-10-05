@@ -9,12 +9,14 @@ import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import java.util.Arrays;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -78,19 +80,19 @@ class VehicleTest {
 
   static Stream<Arguments> invalidTransitions() {
     return Stream.of(
-            transition("startPreparation", VehicleStatus.RECEIVED, Vehicle::startPreparation),
-            transition("releaseForSale", VehicleStatus.IN_PREPARATION, Vehicle::releaseForSale),
-            transition("reserve", VehicleStatus.AVAILABLE, v -> v.reserve(SALE_ID)),
-            transition("confirmSale", VehicleStatus.RESERVED, v -> v.confirmSale(SALE_ID)),
-            transition("releaseReservation", VehicleStatus.RESERVED, v -> v.releaseReservation(SALE_ID)),
-            transition("reverseSale", VehicleStatus.SOLD, v -> v.reverseSale(SALE_ID)),
-            transition("readmit", VehicleStatus.SOLD, v -> v.readmit(NEW_PURCHASE_PRICE, NEW_MILEAGE)))
+            transition("startPreparation", Set.of(VehicleStatus.RECEIVED, VehicleStatus.AVAILABLE), Vehicle::startPreparation),
+            transition("releaseForSale", Set.of(VehicleStatus.IN_PREPARATION), Vehicle::releaseForSale),
+            transition("reserve", Set.of(VehicleStatus.AVAILABLE), v -> v.reserve(SALE_ID)),
+            transition("confirmSale", Set.of(VehicleStatus.RESERVED), v -> v.confirmSale(SALE_ID)),
+            transition("releaseReservation", Set.of(VehicleStatus.RESERVED), v -> v.releaseReservation(SALE_ID)),
+            transition("reverseSale", Set.of(VehicleStatus.SOLD), v -> v.reverseSale(SALE_ID)),
+            transition("readmit", Set.of(VehicleStatus.SOLD), v -> v.readmit(NEW_PURCHASE_PRICE, NEW_MILEAGE)))
         .flatMap(t -> t);
   }
 
-  private static Stream<Arguments> transition(String name, VehicleStatus validStatus, Consumer<Vehicle> action) {
+  private static Stream<Arguments> transition(String name, Set<VehicleStatus> validStatuses, Consumer<Vehicle> action) {
     return Arrays.stream(VehicleStatus.values())
-        .filter(status -> status != validStatus)
+        .filter(status -> !validStatuses.contains(status))
         .map(status -> Arguments.of(name, status, action));
   }
 
@@ -397,5 +399,43 @@ class VehicleTest {
     assertThatThrownBy(() -> vehicle.ensureCanBeDeleted(true))
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage("O veículo já teve venda e não pode ser excluído");
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+      "RECEIVED,  Início da preparação",
+      "AVAILABLE, Retirado da vitrine para reparo"
+  })
+  void startsPreparationRecordingReasonByPreviousStatus(
+      VehicleStatus previous,
+      String reason
+  ) {
+    var vehicle = restore(previous);
+
+    vehicle.startPreparation();
+
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
+    assertThat(vehicle.getStatusChanges())
+        .singleElement()
+        .satisfies(history -> {
+          assertThat(history.previousStatus()).isEqualTo(previous);
+          assertThat(history.newStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
+          assertThat(history.reason()).isEqualTo(reason);
+        });
+  }
+
+  @Test
+  void repairedVehicleCanBeReleasedForSaleAgain() {
+    var vehicle = restore(VehicleStatus.AVAILABLE);
+
+    vehicle.startPreparation();
+    vehicle.releaseForSale();
+
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
+    assertThat(vehicle.getStatusChanges())
+        .extracting(VehicleStatusHistory::previousStatus, VehicleStatusHistory::newStatus)
+        .containsExactly(
+            tuple(VehicleStatus.AVAILABLE, VehicleStatus.IN_PREPARATION),
+            tuple(VehicleStatus.IN_PREPARATION, VehicleStatus.AVAILABLE));
   }
 }

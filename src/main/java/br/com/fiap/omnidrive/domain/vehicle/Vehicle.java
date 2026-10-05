@@ -28,6 +28,7 @@ import java.util.UUID;
  * <ul>
  *     <li>Recebido → Em Preparação ({@link #startPreparation()})</li>
  *     <li>Em Preparação → Disponível ({@link #releaseForSale()})</li>
+ *     <li>Disponível → Em Preparação, para reparo ({@link #startPreparation()})</li>
  *     <li>Disponível → Reservado ({@link #reserve(UUID)})</li>
  *     <li>Reservado → Vendido ({@link #confirmSale(UUID)})</li>
  *     <li>Reservado → Disponível ({@link #releaseReservation(UUID)})</li>
@@ -122,10 +123,19 @@ public class Vehicle {
   }
 
   /**
-   * Recebido → Em Preparação.
+   * Recebido → Em Preparação, na entrada do veículo, ou Disponível → Em Preparação, quando ele sai da vitrine para
+   * reparo. É a única volta permitida na entrada: Recebido → Em Preparação → Disponível continua sempre nessa ordem.
+   * O motivo do histórico indica qual das duas aconteceu.
+   *
+   * @throws InvalidStatusTransitionException se o veículo não estiver Recebido nem Disponível
    */
   public void startPreparation() {
-    transition(VehicleStatus.RECEIVED, VehicleStatus.IN_PREPARATION, "Início da preparação", null);
+    var reason = switch (status) {
+      case RECEIVED -> "Início da preparação";
+      case AVAILABLE -> "Retirado da vitrine para reparo";
+      default -> throw invalidTransition(VehicleStatus.IN_PREPARATION);
+    };
+    changeStatus(VehicleStatus.IN_PREPARATION, reason, null);
   }
 
   /**
@@ -321,8 +331,12 @@ public class Vehicle {
       VehicleStatus next
   ) {
     if (status != expected) {
-      throw new InvalidStatusTransitionException("Não é possível mudar o status do veículo de " + status + " para " + next);
+      throw invalidTransition(next);
     }
+  }
+
+  private InvalidStatusTransitionException invalidTransition(VehicleStatus next) {
+    return new InvalidStatusTransitionException("Não é possível mudar o status do veículo de " + status + " para " + next);
   }
 
   private void changeStatus(
