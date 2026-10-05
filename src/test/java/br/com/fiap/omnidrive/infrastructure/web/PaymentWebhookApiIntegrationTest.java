@@ -3,6 +3,8 @@ package br.com.fiap.omnidrive.infrastructure.web;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
+import br.com.fiap.omnidrive.infrastructure.web.webhook.WebhookProperties;
+import br.com.fiap.omnidrive.infrastructure.web.webhook.WebhookSecretInterceptor;
 import com.jayway.jsonpath.JsonPath;
 import java.io.UnsupportedEncodingException;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,9 @@ class PaymentWebhookApiIntegrationTest {
 
   @Autowired
   private MockMvcTester mvc;
+
+  @Autowired
+  private WebhookProperties webhookProperties;
 
   private static String webhookBody(
       String paymentCode,
@@ -122,6 +127,21 @@ class PaymentWebhookApiIntegrationTest {
   }
 
   @Test
+  void rejectsNotificationWithWrongSecretWithoutChangingPayment() throws UnsupportedEncodingException {
+    var vehicleId = availableVehicle("WEB3003", "Mazda");
+    var paymentCode = sell(vehicleId);
+
+    var rejected = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, "wrong-secret")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(webhookBody(paymentCode, "PAID"))
+        .exchange();
+
+    assertThat(rejected).hasStatus(HttpStatus.UNAUTHORIZED);
+    assertThat(vehicleStatus(vehicleId)).isEqualTo("RESERVED");
+  }
+
+  @Test
   void publishesWebhookInOpenApiDocumentation() {
     assertThat(mvc.get().uri("/v3/api-docs").exchange())
         .hasStatus(HttpStatus.OK)
@@ -144,6 +164,7 @@ class PaymentWebhookApiIntegrationTest {
       String status
   ) {
     return mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
         .contentType(MediaType.APPLICATION_JSON)
         .content(webhookBody(paymentCode, status))
         .exchange();

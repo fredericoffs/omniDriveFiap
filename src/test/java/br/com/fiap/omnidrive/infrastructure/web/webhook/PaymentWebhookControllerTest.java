@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
@@ -28,8 +29,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
- * Testes da camada web do webhook de pagamento: contrato JSON, validação do corpo e conversão das exceções em status
- * HTTP.
+ * Testes da camada web do webhook de pagamento: segredo compartilhado no header, contrato JSON, validação do corpo e
+ * conversão das exceções em status HTTP.
  */
 @WebMvcTest(PaymentWebhookController.class)
 class PaymentWebhookControllerTest {
@@ -47,6 +48,9 @@ class PaymentWebhookControllerTest {
 
   @Autowired
   private MockMvcTester mvc;
+
+  @Autowired
+  private WebhookProperties webhookProperties;
 
   @MockitoBean
   private ProcessPaymentResult processPaymentResult;
@@ -84,6 +88,7 @@ class PaymentWebhookControllerTest {
     );
 
     var response = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
         .contentType(MediaType.APPLICATION_JSON)
         .content(PAID_BODY)
         .exchange();
@@ -109,6 +114,7 @@ class PaymentWebhookControllerTest {
   @Test
   void rejectsMissingFieldsWithMessagePerField() {
     var response = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
             {
@@ -136,6 +142,7 @@ class PaymentWebhookControllerTest {
   @Test
   void rejectsStatusThatProcessorDoesNotSend() {
     var response = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
         .contentType(MediaType.APPLICATION_JSON)
         .content(PAID_BODY.replace("PAID", "REFUNDED"))
         .exchange();
@@ -158,6 +165,7 @@ class PaymentWebhookControllerTest {
     when(processPaymentResult.execute(any())).thenThrow(exception);
 
     var response = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
         .contentType(MediaType.APPLICATION_JSON)
         .content(PAID_BODY)
         .exchange();
@@ -167,5 +175,42 @@ class PaymentWebhookControllerTest {
         .bodyJson()
         .extractingPath("$.title")
         .isEqualTo(expectedTitle);
+  }
+
+  @Test
+  void rejectsRequestWithoutSecret() {
+    var response = mvc.post().uri("/webhooks/payments")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(PAID_BODY)
+        .exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.UNAUTHORIZED)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": 401,
+              "title": "Não autorizado",
+              "detail": "Segredo do webhook ausente ou inválido"
+            }
+            """);
+    verifyNoInteractions(processPaymentResult);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", "wrong-secret", "OMNIDRIVE-DEV-WEBHOOK-SECRET", "omnidrive-dev-webhook-secret "})
+  void rejectsRequestWithWrongSecret(String secret) {
+    var response = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, secret)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(PAID_BODY)
+        .exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.UNAUTHORIZED)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("Segredo do webhook ausente ou inválido");
+    verifyNoInteractions(processPaymentResult);
   }
 }

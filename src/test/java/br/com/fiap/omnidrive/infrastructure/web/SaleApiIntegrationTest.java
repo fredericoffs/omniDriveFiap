@@ -3,6 +3,8 @@ package br.com.fiap.omnidrive.infrastructure.web;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
+import br.com.fiap.omnidrive.infrastructure.web.webhook.WebhookProperties;
+import br.com.fiap.omnidrive.infrastructure.web.webhook.WebhookSecretInterceptor;
 import com.jayway.jsonpath.JsonPath;
 import java.io.UnsupportedEncodingException;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,9 @@ class SaleApiIntegrationTest {
 
   @Autowired
   private MockMvcTester mvc;
+
+  @Autowired
+  private WebhookProperties webhookProperties;
 
   private static String saleBody(String vehicleId) {
     return """
@@ -164,6 +169,7 @@ class SaleApiIntegrationTest {
         .isEqualTo("CANCELED");
 
     var paidAfterCancellation = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
         .contentType(MediaType.APPLICATION_JSON)
         .content("""
             {

@@ -4,6 +4,7 @@ import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
+import br.com.fiap.omnidrive.infrastructure.web.webhook.InvalidWebhookSecretException;
 import java.util.LinkedHashMap;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpHeaders;
@@ -26,6 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  *     <li>{@link NotFoundException} → 404</li>
  *     <li>{@link ConcurrentUpdateException} e {@link AlreadyExistsException} → 409</li>
  *     <li>{@link BusinessRuleException} → 422</li>
+ *     <li>{@link InvalidWebhookSecretException} → 401</li>
  *     <li>Validação do corpo ou dos parâmetros de paginação, JSON inválido ou parâmetro com formato errado → 400</li>
  * </ul>
  */
@@ -63,6 +65,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(BusinessRuleException.class)
   ProblemDetail handleBusinessRule(BusinessRuleException exception) {
     return problem(HttpStatus.UNPROCESSABLE_CONTENT, "Regra de negócio violada", exception.getMessage());
+  }
+
+  @ExceptionHandler(InvalidWebhookSecretException.class)
+  ProblemDetail handleInvalidWebhookSecret(InvalidWebhookSecretException exception) {
+    return problem(HttpStatus.UNAUTHORIZED, "Não autorizado", exception.getMessage());
   }
 
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
