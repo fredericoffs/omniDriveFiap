@@ -10,9 +10,9 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.usecase.DeleteVehicle;
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
-import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
-import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
-import br.com.fiap.omnidrive.application.usecase.UpdateVehicleInput;
+import br.com.fiap.omnidrive.application.usecase.vehicle.RegisterVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicleInput;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;

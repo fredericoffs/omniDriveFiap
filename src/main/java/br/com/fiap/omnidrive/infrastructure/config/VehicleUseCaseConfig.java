@@ -7,11 +7,11 @@ import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
-import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
 import br.com.fiap.omnidrive.application.usecase.SearchVehicles;
 import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
-import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.RegisterVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

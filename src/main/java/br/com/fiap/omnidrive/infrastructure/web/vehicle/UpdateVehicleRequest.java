@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
-import br.com.fiap.omnidrive.application.usecase.UpdateVehicleInput;
+import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicleInput;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Digits;
