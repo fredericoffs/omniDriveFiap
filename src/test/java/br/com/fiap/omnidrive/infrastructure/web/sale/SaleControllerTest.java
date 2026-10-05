@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
+import br.com.fiap.omnidrive.application.usecase.GetSale;
 import br.com.fiap.omnidrive.application.usecase.SaleWithPayment;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
@@ -59,6 +60,9 @@ class SaleControllerTest {
 
   @MockitoBean
   private CreateSale createSale;
+
+  @MockitoBean
+  private GetSale getSale;
 
   private static SaleWithPayment result() {
     return new SaleWithPayment(
@@ -199,5 +203,56 @@ class SaleControllerTest {
         .bodyJson()
         .extractingPath("$.title")
         .isEqualTo(expectedTitle);
+  }
+
+  @Test
+  void getsSaleWithPaymentStatus() {
+    when(getSale.execute(SALE_ID)).thenReturn(result());
+
+    var response = mvc.get().uri("/sales/{id}", SALE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+              "vehicleId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "buyerCpf": "52998224725",
+              "saleDate": "2026-10-01",
+              "amount": 40000.50,
+              "paymentCode": "3f2b8c1e-5d4a-4b6f-9e7d-1a2b3c4d5e6f",
+              "paymentStatus": "AWAITING_PAYMENT"
+            }
+            """);
+  }
+
+  @Test
+  void returnsNotFoundWhenGettingUnknownSale() {
+    when(getSale.execute(SALE_ID)).thenThrow(new NotFoundException("Venda não encontrada: " + SALE_ID));
+
+    var response = mvc.get().uri("/sales/{id}", SALE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.NOT_FOUND)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "title": "Recurso não encontrado",
+              "detail": "Venda não encontrada: 7c9e6679-7425-40de-944b-e07fc1f90ae7"
+            }
+            """);
+  }
+
+  @Test
+  void rejectsMalformedSaleId() {
+    var response = mvc.get().uri("/sales/not-a-uuid").exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("Valor inválido para o parâmetro id");
+    verifyNoInteractions(getSale);
   }
 }

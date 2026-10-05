@@ -50,6 +50,12 @@ class PaymentWebhookApiIntegrationTest {
         .bodyJson()
         .extractingPath("$.status")
         .isEqualTo("PAID");
+    String saleId = JsonPath.read(paid.getResponse().getContentAsString(), "$.saleId");
+    assertThat(mvc.get().uri("/sales/{id}", saleId).exchange())
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.paymentStatus")
+        .isEqualTo("PAID");
     assertThat(vehicleStatus(vehicleId)).isEqualTo("SOLD");
     assertThat(mvc.get().uri("/vehicles/sold?size=100").exchange())
         .hasStatus(HttpStatus.OK)
@@ -70,6 +76,10 @@ class PaymentWebhookApiIntegrationTest {
         .hasStatus(HttpStatus.OK)
         .bodyJson()
         .extractingPath("$.status")
+        .isEqualTo("REFUNDED");
+    assertThat(mvc.get().uri("/sales/{id}", saleId).exchange())
+        .bodyJson()
+        .extractingPath("$.paymentStatus")
         .isEqualTo("REFUNDED");
     assertThat(vehicleStatus(vehicleId)).isEqualTo("AVAILABLE");
     assertThat(mvc.get().uri("/vehicles/sold?size=100").exchange())

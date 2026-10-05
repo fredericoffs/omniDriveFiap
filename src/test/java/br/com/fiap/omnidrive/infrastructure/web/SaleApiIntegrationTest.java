@@ -15,7 +15,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 /**
  * Testes de ponta a ponta da API de vendas, com a aplicação completa e o Postgres do Testcontainers.
  *
- * <p>Aqui o veículo fica Reservado, e os testes conferem que ele sai das listagens. O caminho até Vendido, pelo
+ * <p>Aqui o veículo fica Reservado, e os testes conferem que ele sai das listagens e que a venda pode ser consultada
+ * pelo {@code Location} devolvido. O caminho até Vendido, pelo
  * webhook de pagamento, está no {@link PaymentWebhookApiIntegrationTest}.
  */
 @SpringBootTest
@@ -56,7 +57,23 @@ class SaleApiIntegrationTest {
               "paymentStatus": "AWAITING_PAYMENT"
             }
             """.formatted(vehicleId));
-    assertThat(sold.getResponse().getHeader("Location")).contains("/sales/");
+    var location = sold.getResponse().getHeader("Location");
+    assert location != null;
+    assertThat(location).contains("/sales/");
+
+    var sale = mvc.get().uri(location).exchange();
+    assertThat(sale)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "%s",
+              "vehicleId": "%s",
+              "buyerCpf": "52998224725",
+              "amount": 40000.00,
+              "paymentStatus": "AWAITING_PAYMENT"
+            }
+            """.formatted(location.substring(location.lastIndexOf('/') + 1), vehicleId));
 
     var vehicle = mvc.get().uri("/vehicles/{id}", vehicleId).exchange();
     assertThat(vehicle)
@@ -114,7 +131,14 @@ class SaleApiIntegrationTest {
   }
 
   @Test
-  void publishesSaleEndpointInOpenApiDocumentation() {
+  void returnsNotFoundForUnknownSale() {
+    var response = mvc.get().uri("/sales/{id}", "6b1f7a4e-3c1d-4a8e-9a4f-2f1d1c0b9e7a").exchange();
+
+    assertThat(response).hasStatus(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void publishesSaleEndpointsInOpenApiDocumentation() {
     var docs = mvc.get().uri("/v3/api-docs").exchange();
 
     assertThat(docs)
@@ -126,6 +150,11 @@ class SaleApiIntegrationTest {
                 "/sales": {
                   "post": {
                     "summary": "Efetuar venda"
+                  }
+                },
+                "/sales/{id}": {
+                  "get": {
+                    "summary": "Consultar venda"
                   }
                 }
               }

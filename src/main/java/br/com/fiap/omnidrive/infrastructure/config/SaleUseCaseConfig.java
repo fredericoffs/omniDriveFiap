@@ -5,6 +5,7 @@ import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.application.gateway.TransactionRunner;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
+import br.com.fiap.omnidrive.application.usecase.GetSale;
 import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +29,17 @@ public class SaleUseCaseConfig {
         saleGateway,
         paymentGateway,
         transactionRunner
+    );
+  }
+
+  @Bean
+  GetSale getSale(
+      SaleGateway saleGateway,
+      PaymentGateway paymentGateway
+  ) {
+    return new GetSale(
+        saleGateway,
+        paymentGateway
     );
   }
 
