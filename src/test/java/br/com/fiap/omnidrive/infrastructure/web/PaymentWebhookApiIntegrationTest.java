@@ -19,7 +19,8 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * Testes de ponta a ponta do webhook de pagamento, com a aplicação completa e o Postgres do Testcontainers: da venda
- * ao veículo vendido, à repetição, ao estorno e à recusa.
+ * ao veículo vendido, à repetição, ao estorno e à recusa. Também confere que o segredo compartilhado é exigido só nas
+ * rotas de webhook.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -142,8 +143,17 @@ class PaymentWebhookApiIntegrationTest {
   }
 
   @Test
-  void publishesWebhookInOpenApiDocumentation() {
-    assertThat(mvc.get().uri("/v3/api-docs").exchange())
+  void doesNotRequireSecretOutsideWebhooks() {
+    assertThat(mvc.get().uri("/vehicles/for-sale").exchange()).hasStatus(HttpStatus.OK);
+    assertThat(mvc.get().uri("/sales/{id}", "6b1f7a4e-3c1d-4a8e-9a4f-2f1d1c0b9e7a").exchange())
+        .hasStatus(HttpStatus.NOT_FOUND);
+  }
+
+  @Test
+  void publishesWebhookInOpenApiDocumentationWithSecretOnlyOnIt() {
+    var docs = mvc.get().uri("/v3/api-docs").exchange();
+
+    assertThat(docs)
         .hasStatus(HttpStatus.OK)
         .bodyJson()
         .isLenientlyEqualTo("""
@@ -151,12 +161,30 @@ class PaymentWebhookApiIntegrationTest {
               "paths": {
                 "/webhooks/payments": {
                   "post": {
-                    "summary": "Informar resultado do pagamento"
+                    "summary": "Informar resultado do pagamento",
+                    "security": [
+                      {
+                        "webhookSecret": []
+                      }
+                    ]
+                  }
+                }
+              },
+              "components": {
+                "securitySchemes": {
+                  "webhookSecret": {
+                    "type": "apiKey",
+                    "in": "header",
+                    "name": "X-Webhook-Secret"
                   }
                 }
               }
             }
             """);
+    assertThat(docs)
+        .bodyJson()
+        .doesNotHavePath("$.paths['/sales'].post.security")
+        .doesNotHavePath("$.security");
   }
 
   private MvcTestResult sendWebhook(

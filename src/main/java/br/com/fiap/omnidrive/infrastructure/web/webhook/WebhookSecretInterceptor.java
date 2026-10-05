@@ -16,6 +16,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class WebhookSecretInterceptor implements HandlerInterceptor {
 
   public static final String HEADER = "X-Webhook-Secret";
+  public static final String SECURITY_SCHEME = "webhookSecret";
 
   private final byte[] expectedSecret;
 
