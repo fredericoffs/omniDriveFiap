@@ -203,6 +203,38 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void deletesReceivedVehicleAndRejectsDeletionAfterPreparation() {
+    var location = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("DEL1006", "Fiat", null))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+    assert location != null;
+
+    assertThat(mvc.delete().uri(location).exchange()).hasStatus(HttpStatus.NO_CONTENT);
+    assertThat(mvc.get().uri(location).exchange()).hasStatus(HttpStatus.NOT_FOUND);
+    assertThat(mvc.delete().uri(location).exchange()).hasStatus(HttpStatus.NOT_FOUND);
+
+    var preparedLocation = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("DEL1007", "Fiat", null))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+    assert preparedLocation != null;
+    assertThat(mvc.post().uri(preparedLocation + "/preparation").exchange()).hasStatus(HttpStatus.OK);
+
+    var rejected = mvc.delete().uri(preparedLocation).exchange();
+    assertThat(rejected)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("O veículo não pode ser excluído com status IN_PREPARATION");
+    assertThat(mvc.get().uri(preparedLocation).exchange()).hasStatus(HttpStatus.OK);
+  }
+
+  @Test
   void findsRegisteredVehicleBySearch() {
     var created = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)
@@ -262,6 +294,11 @@ class VehicleApiIntegrationTest {
                   },
                   "get": {
                     "summary": "Buscar veículos"
+                  }
+                },
+                "/vehicles/{id}": {
+                  "delete": {
+                    "summary": "Excluir veículo"
                   }
                 }
               }

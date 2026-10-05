@@ -1,5 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
+import br.com.fiap.omnidrive.application.usecase.DeleteVehicle;
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
@@ -14,6 +15,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,10 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
- * Endpoints de cadastro de veículos: cadastrar, consultar e editar. As mudanças de status ficam no
+ * Endpoints de cadastro de veículos: cadastrar, consultar, editar e excluir. As mudanças de status ficam no
  * {@link VehicleStatusController}, e as listagens no {@link VehicleListingController}.
  */
-@Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação, reentrada e listagens de veículos")
+@Tag(name = "Veículos", description = "Cadastro, consulta, edição, exclusão, preparação, reentrada e listagens de veículos")
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleController {
@@ -35,15 +37,18 @@ public class VehicleController {
   private final RegisterVehicle registerVehicle;
   private final GetVehicle getVehicle;
   private final UpdateVehicle updateVehicle;
+  private final DeleteVehicle deleteVehicle;
 
   VehicleController(
       RegisterVehicle registerVehicle,
       GetVehicle getVehicle,
-      UpdateVehicle updateVehicle
+      UpdateVehicle updateVehicle,
+      DeleteVehicle deleteVehicle
   ) {
     this.registerVehicle = registerVehicle;
     this.getVehicle = getVehicle;
     this.updateVehicle = updateVehicle;
+    this.deleteVehicle = deleteVehicle;
   }
 
   @Operation(
@@ -139,5 +144,39 @@ public class VehicleController {
       @Valid @RequestBody UpdateVehicleRequest request
   ) {
     return VehicleResponse.from(updateVehicle.execute(id, request.toInput()));
+  }
+
+  @Operation(
+      summary = "Excluir veículo",
+      description = """
+          Exclui um veículo cadastrado por engano, junto com o seu histórico de status. Só é permitido com status \
+          RECEIVED e se o veículo nunca teve venda: um veículo que voltou à loja pela reentrada não pode ser \
+          excluído."""
+  )
+  @ApiResponse(responseCode = "204", description = "Veículo excluído")
+  @ApiResponse(
+      responseCode = "400",
+      description = "Id em formato inválido",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "404",
+      description = "Veículo não encontrado",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "O veículo foi alterado por outra operação durante a exclusão",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "422",
+      description = "O veículo não está com status RECEIVED ou já teve venda",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @DeleteMapping("/{id}")
+  ResponseEntity<Void> delete(@Parameter(description = "Identificador do veículo") @PathVariable UUID id) {
+    deleteVehicle.execute(id);
+    return ResponseEntity.noContent().build();
   }
 }

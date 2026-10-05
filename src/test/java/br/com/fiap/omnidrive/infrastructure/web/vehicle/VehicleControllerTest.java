@@ -3,10 +3,12 @@ package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import br.com.fiap.omnidrive.application.usecase.DeleteVehicle;
 import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
@@ -87,6 +89,9 @@ class VehicleControllerTest {
   @MockitoBean
   private UpdateVehicle updateVehicle;
 
+  @MockitoBean
+  private DeleteVehicle deleteVehicle;
+
   private static Vehicle vehicle(
       String salePrice,
       VehicleStatus status,
@@ -109,6 +114,26 @@ class VehicleControllerTest {
         status,
         null,
         version
+    );
+  }
+
+  private static Stream<Arguments> deleteExceptions() {
+    return Stream.of(
+        Arguments.of(
+            new NotFoundException("Veículo não encontrado"),
+            HttpStatus.NOT_FOUND,
+            "Recurso não encontrado"
+        ),
+        Arguments.of(
+            new ConcurrentUpdateException("Veículo alterado"),
+            HttpStatus.CONFLICT,
+            "Conflito de atualização"
+        ),
+        Arguments.of(
+            new BusinessRuleException("O veículo já teve venda e não pode ser excluído"),
+            HttpStatus.UNPROCESSABLE_CONTENT,
+            "Regra de negócio violada"
+        )
     );
   }
 
@@ -357,5 +382,39 @@ class VehicleControllerTest {
         .bodyJson()
         .extractingPath("$.detail")
         .isEqualTo("Valor inválido para o parâmetro id");
+  }
+
+  @Test
+  void deletesVehicle() {
+    var response = mvc.delete().uri("/vehicles/{id}", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.NO_CONTENT)
+        .body()
+        .isEmpty();
+    verify(deleteVehicle).execute(VEHICLE_ID);
+  }
+
+  @ParameterizedTest(name = "{1}")
+  @MethodSource("deleteExceptions")
+  void translatesDeleteExceptionToHttpStatus(
+      RuntimeException exception,
+      HttpStatus expectedStatus,
+      String expectedTitle
+  ) {
+    doThrow(exception).when(deleteVehicle).execute(VEHICLE_ID);
+
+    var response = mvc.delete().uri("/vehicles/{id}", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(expectedStatus)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": %d,
+              "title": "%s",
+              "detail": "%s"
+            }
+            """.formatted(expectedStatus.value(), expectedTitle, exception.getMessage()));
   }
 }
