@@ -1,8 +1,8 @@
 package br.com.fiap.omnidrive.infrastructure.web.sale;
 
-import br.com.fiap.omnidrive.application.usecase.CancelSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
-import br.com.fiap.omnidrive.application.usecase.GetSale;
+import br.com.fiap.omnidrive.application.usecase.sale.CancelSale;
+import br.com.fiap.omnidrive.application.usecase.sale.GetSale;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.headers.Header;

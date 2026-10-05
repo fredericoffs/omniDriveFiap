@@ -8,9 +8,9 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
-import br.com.fiap.omnidrive.application.usecase.CancelSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
+import br.com.fiap.omnidrive.application.usecase.sale.CancelSale;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.sale.Payment;

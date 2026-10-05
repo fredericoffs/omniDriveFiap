@@ -6,11 +6,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import br.com.fiap.omnidrive.application.usecase.CancelSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
-import br.com.fiap.omnidrive.application.usecase.GetSale;
-import br.com.fiap.omnidrive.application.usecase.SaleWithPayment;
+import br.com.fiap.omnidrive.application.usecase.sale.CancelSale;
+import br.com.fiap.omnidrive.application.usecase.sale.GetSale;
+import br.com.fiap.omnidrive.application.usecase.sale.SaleWithPayment;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;

@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.sale;
 
-import br.com.fiap.omnidrive.application.usecase.SaleWithPayment;
+import br.com.fiap.omnidrive.application.usecase.sale.SaleWithPayment;
 import br.com.fiap.omnidrive.domain.sale.PaymentStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
