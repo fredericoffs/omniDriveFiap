@@ -483,6 +483,40 @@ class JpaVehicleGatewayTest {
   }
 
   @Test
+  void savesVehicleReturnedToOwnerWithItsHistory() {
+    var sequence = SEQUENCE.incrementAndGet();
+    var vehicle = Vehicle.register(
+        new Chassis("9BWZZZ377LT00" + sequence),
+        new VehicleDetails(
+            "Fiat",
+            "Uno",
+            2020,
+            "Prata",
+            new Plate("ABC" + sequence),
+            45000,
+            Money.of("30000"),
+            Money.of("40000"),
+            VehicleOrigin.CONSIGNED
+        )
+    );
+    vehicle.startPreparation();
+    vehicle.returnToOwner();
+    gateway.save(vehicle);
+    flushAndClear();
+
+    assertThat(gateway.findById(vehicle.getId()))
+        .get()
+        .extracting(Vehicle::getStatus)
+        .isEqualTo(VehicleStatus.RETURNED_TO_OWNER);
+    assertThat(statusHistory(vehicle.getId()))
+        .containsExactlyInAnyOrder(
+            VehicleStatus.RECEIVED,
+            VehicleStatus.IN_PREPARATION,
+            VehicleStatus.RETURNED_TO_OWNER
+        );
+  }
+
+  @Test
   void rejectsCurrentSaleThatDoesNotExist() {
     var vehicle = gateway.save(available("40000"));
     vehicle.reserve(UUID.randomUUID());

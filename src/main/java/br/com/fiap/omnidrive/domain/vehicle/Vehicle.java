@@ -5,8 +5,10 @@ import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,9 +36,17 @@ import java.util.UUID;
  *     <li>Reservado → Disponível ({@link #releaseReservation(UUID)})</li>
  *     <li>Vendido → Disponível ({@link #reverseSale(UUID)})</li>
  *     <li>Vendido → Recebido ({@link #readmit(Money, Integer)})</li>
+ *     <li>Recebido, Em Preparação ou Disponível → Devolvido ao dono, só para o consignado ({@link #returnToOwner()})</li>
+ *     <li>Devolvido ao dono → Recebido ({@link #readmit(Money, Integer)})</li>
  * </ul>
  */
 public class Vehicle {
+
+  private static final Set<VehicleStatus> RETURNABLE_TO_OWNER = EnumSet.of(
+      VehicleStatus.RECEIVED,
+      VehicleStatus.IN_PREPARATION,
+      VehicleStatus.AVAILABLE
+  );
 
   private final UUID id;
   private final Chassis chassis;
@@ -188,30 +198,50 @@ public class Vehicle {
   }
 
   /**
-   * Vendido → Recebido: o veículo volta à loja com um novo valor de entrada e uma nova quilometragem, e fica sem venda
-   * atual. O valor de entrada e a quilometragem anteriores ficam registrados no motivo do histórico.
+   * Vendido ou Devolvido ao dono → Recebido: o veículo volta à loja com um novo valor de entrada e uma nova
+   * quilometragem, e fica sem venda atual. O valor de entrada e a quilometragem anteriores ficam registrados no motivo
+   * do histórico.
    *
-   * @throws BusinessRuleException se a quilometragem não for informada ou não for maior que a atual
+   * <p>Depois de uma venda, a quilometragem precisa ser maior que a atual, porque o comprador rodou com o veículo. Na
+   * volta do consignado, pode ser igual, porque o dono pode trazê-lo sem ter rodado, mas nunca menor.
+   *
+   * @throws BusinessRuleException se a quilometragem não for informada ou for menor que a permitida
    */
   public void readmit(
       Money newPurchasePrice,
       Integer newMileage
   ) {
-    requireStatus(VehicleStatus.SOLD, VehicleStatus.RECEIVED);
+    if (status != VehicleStatus.SOLD && status != VehicleStatus.RETURNED_TO_OWNER) {
+      throw invalidTransition(VehicleStatus.RECEIVED);
+    }
     if (newMileage == null) {
       throw new BusinessRuleException("A quilometragem é obrigatória");
     }
     var previous = details;
-    if (newMileage <= previous.mileage()) {
-      throw new BusinessRuleException(
-          "A quilometragem da reentrada deve ser maior que a atual (" + previous.mileage() + " km)");
-    }
+    requireReadmissionMileage(newMileage, previous.mileage());
     details = previous.withReadmission(newPurchasePrice, newMileage);
     changeStatus(VehicleStatus.RECEIVED,
         "Reentrada na loja; valor de entrada anterior: " + previous.purchasePrice().amount().toPlainString()
             + "; quilometragem anterior: " + previous.mileage() + " km",
         null);
     currentSaleId = null;
+  }
+
+  /**
+   * Recebido, Em Preparação ou Disponível → Devolvido ao dono: o veículo consignado sai da loja e volta ao dono sem ser
+   * vendido. Ele pode voltar depois pela reentrada.
+   *
+   * @throws InvalidStatusTransitionException se o veículo não estiver Recebido, Em Preparação nem Disponível
+   * @throws BusinessRuleException se o veículo não for consignado
+   */
+  public void returnToOwner() {
+    if (!RETURNABLE_TO_OWNER.contains(status)) {
+      throw invalidTransition(VehicleStatus.RETURNED_TO_OWNER);
+    }
+    if (details.origin() != VehicleOrigin.CONSIGNED) {
+      throw new BusinessRuleException("Só um veículo consignado pode ser devolvido ao dono");
+    }
+    changeStatus(VehicleStatus.RETURNED_TO_OWNER, "Devolvido ao dono", null);
   }
 
   /**
@@ -332,6 +362,20 @@ public class Vehicle {
   ) {
     if (status != expected) {
       throw invalidTransition(next);
+    }
+  }
+
+  private void requireReadmissionMileage(
+      int newMileage,
+      int currentMileage
+  ) {
+    if (status == VehicleStatus.SOLD && newMileage <= currentMileage) {
+      throw new BusinessRuleException(
+          "A quilometragem da reentrada deve ser maior que a atual (" + currentMileage + " km)");
+    }
+    if (newMileage < currentMileage) {
+      throw new BusinessRuleException(
+          "A quilometragem da reentrada não pode ser menor que a atual (" + currentMileage + " km)");
     }
   }
 

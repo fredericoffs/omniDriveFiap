@@ -2,7 +2,8 @@ package br.com.fiap.omnidrive.domain.vehicle;
 
 /**
  * Status do veículo na loja: Recebido → Em Preparação → Disponível → Reservado → Vendido, com a volta de Disponível para Em
- * Preparação para reparo. As transições permitidas ficam em {@link Vehicle}.
+ * Preparação para reparo e a saída do consignado para Devolvido ao dono. As transições permitidas ficam em
+ * {@link Vehicle}.
  */
 public enum VehicleStatus {
 
@@ -30,7 +31,12 @@ public enum VehicleStatus {
   /**
    * O pagamento da venda foi confirmado.
    */
-  SOLD(false);
+  SOLD(false),
+
+  /**
+   * O veículo consignado saiu da loja e voltou ao dono sem ser vendido. Pode voltar à loja pela reentrada.
+   */
+  RETURNED_TO_OWNER(false);
 
   private final boolean editable;
 

@@ -86,7 +86,10 @@ class VehicleTest {
             transition("confirmSale", Set.of(VehicleStatus.RESERVED), v -> v.confirmSale(SALE_ID)),
             transition("releaseReservation", Set.of(VehicleStatus.RESERVED), v -> v.releaseReservation(SALE_ID)),
             transition("reverseSale", Set.of(VehicleStatus.SOLD), v -> v.reverseSale(SALE_ID)),
-            transition("readmit", Set.of(VehicleStatus.SOLD), v -> v.readmit(NEW_PURCHASE_PRICE, NEW_MILEAGE)))
+            transition("readmit", Set.of(VehicleStatus.SOLD, VehicleStatus.RETURNED_TO_OWNER),
+                v -> v.readmit(NEW_PURCHASE_PRICE, NEW_MILEAGE)),
+            transition("returnToOwner", Set.of(VehicleStatus.RECEIVED, VehicleStatus.IN_PREPARATION, VehicleStatus.AVAILABLE),
+                Vehicle::returnToOwner))
         .flatMap(t -> t);
   }
 
@@ -98,6 +101,17 @@ class VehicleTest {
 
   private static Vehicle register() {
     return Vehicle.register(CHASSIS, DETAILS);
+  }
+
+  private static Vehicle restoreConsigned(VehicleStatus status) {
+    return Vehicle.restore(
+        UUID.randomUUID(),
+        CHASSIS,
+        NEW_DETAILS,
+        status,
+        null,
+        0
+    );
   }
 
   private static Vehicle restore(VehicleStatus status) {
@@ -297,8 +311,8 @@ class VehicleTest {
   }
 
   @ParameterizedTest
-  @EnumSource(names = {"RESERVED", "SOLD"})
-  void blocksUpdateWhenReservedOrSold(VehicleStatus status) {
+  @EnumSource(names = {"RESERVED", "SOLD", "RETURNED_TO_OWNER"})
+  void blocksUpdateOutsideEditableStatuses(VehicleStatus status) {
     var vehicle = restore(status);
 
     assertThatThrownBy(() -> vehicle.update(NEW_DETAILS))
@@ -437,5 +451,59 @@ class VehicleTest {
         .containsExactly(
             tuple(VehicleStatus.AVAILABLE, VehicleStatus.IN_PREPARATION),
             tuple(VehicleStatus.IN_PREPARATION, VehicleStatus.AVAILABLE));
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"RECEIVED", "IN_PREPARATION", "AVAILABLE"})
+  void returnsConsignedVehicleToOwner(VehicleStatus previous) {
+    var vehicle = restoreConsigned(previous);
+
+    vehicle.returnToOwner();
+
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.RETURNED_TO_OWNER);
+    assertThat(vehicle.getStatusChanges())
+        .singleElement()
+        .satisfies(history -> {
+          assertThat(history.previousStatus()).isEqualTo(previous);
+          assertThat(history.newStatus()).isEqualTo(VehicleStatus.RETURNED_TO_OWNER);
+          assertThat(history.reason()).isEqualTo("Devolvido ao dono");
+        });
+  }
+
+  @Test
+  void rejectsReturnOfOwnedVehicleToOwner() {
+    var vehicle = restore(VehicleStatus.AVAILABLE);
+
+    assertThatThrownBy(vehicle::returnToOwner)
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("Só um veículo consignado pode ser devolvido ao dono");
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
+    assertThat(vehicle.getStatusChanges()).isEmpty();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {46000, 46001})
+  void readmitsVehicleReturnedToOwnerWithSameOrGreaterMileage(int mileage) {
+    var vehicle = restoreConsigned(VehicleStatus.RETURNED_TO_OWNER);
+
+    vehicle.readmit(NEW_PURCHASE_PRICE, mileage);
+
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.RECEIVED);
+    assertThat(vehicle.getMileage()).isEqualTo(mileage);
+    assertThat(vehicle.getPurchasePrice()).isEqualTo(NEW_PURCHASE_PRICE);
+    assertThat(vehicle.getStatusChanges())
+        .singleElement()
+        .extracting(VehicleStatusHistory::previousStatus)
+        .isEqualTo(VehicleStatus.RETURNED_TO_OWNER);
+  }
+
+  @Test
+  void rejectsLowerMileageOnReadmissionOfVehicleReturnedToOwner() {
+    var vehicle = restoreConsigned(VehicleStatus.RETURNED_TO_OWNER);
+
+    assertThatThrownBy(() -> vehicle.readmit(NEW_PURCHASE_PRICE, 45999))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("A quilometragem da reentrada não pode ser menor que a atual (46000 km)");
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.RETURNED_TO_OWNER);
   }
 }
