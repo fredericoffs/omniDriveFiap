@@ -8,8 +8,8 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
-import br.com.fiap.omnidrive.application.usecase.CreateSale;
-import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSale;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSaleInput;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;

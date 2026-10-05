@@ -6,9 +6,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import br.com.fiap.omnidrive.application.usecase.CreateSale;
-import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
 import br.com.fiap.omnidrive.application.usecase.sale.CancelSale;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSale;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSaleInput;
 import br.com.fiap.omnidrive.application.usecase.sale.GetSale;
 import br.com.fiap.omnidrive.application.usecase.sale.SaleWithPayment;
 import br.com.fiap.omnidrive.domain.common.Cpf;

@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.sale;
 
-import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSaleInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

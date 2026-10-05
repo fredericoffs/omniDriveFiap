@@ -1,4 +1,4 @@
-package br.com.fiap.omnidrive.application.usecase;
+package br.com.fiap.omnidrive.application.usecase.sale;
 
 import java.time.LocalDate;
 import java.util.UUID;

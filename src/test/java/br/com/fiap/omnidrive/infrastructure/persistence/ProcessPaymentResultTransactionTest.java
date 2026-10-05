@@ -8,8 +8,8 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
-import br.com.fiap.omnidrive.application.usecase.CreateSale;
-import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSale;
+import br.com.fiap.omnidrive.application.usecase.sale.CreateSaleInput;
 import br.com.fiap.omnidrive.application.usecase.sale.ProcessPaymentResult;
 import br.com.fiap.omnidrive.application.usecase.sale.ProcessPaymentResultInput;
 import br.com.fiap.omnidrive.domain.common.Money;
