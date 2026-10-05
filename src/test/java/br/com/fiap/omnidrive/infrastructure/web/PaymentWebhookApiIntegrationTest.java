@@ -51,10 +51,10 @@ class PaymentWebhookApiIntegrationTest {
         .extractingPath("$.status")
         .isEqualTo("PAID");
     assertThat(vehicleStatus(vehicleId)).isEqualTo("SOLD");
-    assertThat(mvc.get().uri("/vehicles/sold").exchange())
+    assertThat(mvc.get().uri("/vehicles/sold?size=100").exchange())
         .hasStatus(HttpStatus.OK)
         .bodyJson()
-        .extractingPath("$[*].vehicle.id")
+        .extractingPath("$.content[*].vehicle.id")
         .asArray()
         .contains(vehicleId);
 
@@ -72,14 +72,14 @@ class PaymentWebhookApiIntegrationTest {
         .extractingPath("$.status")
         .isEqualTo("REFUNDED");
     assertThat(vehicleStatus(vehicleId)).isEqualTo("AVAILABLE");
-    assertThat(mvc.get().uri("/vehicles/sold").exchange())
+    assertThat(mvc.get().uri("/vehicles/sold?size=100").exchange())
         .bodyJson()
-        .extractingPath("$[*].vehicle.id")
+        .extractingPath("$.content[*].vehicle.id")
         .asArray()
         .doesNotContain(vehicleId);
-    assertThat(mvc.get().uri("/vehicles/for-sale").exchange())
+    assertThat(mvc.get().uri("/vehicles/for-sale?size=100").exchange())
         .bodyJson()
-        .extractingPath("$[*].id")
+        .extractingPath("$.content[*].id")
         .asArray()
         .contains(vehicleId);
   }

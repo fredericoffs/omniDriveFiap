@@ -26,13 +26,14 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  *     <li>{@link NotFoundException} → 404</li>
  *     <li>{@link ConcurrentUpdateException} e {@link AlreadyExistsException} → 409</li>
  *     <li>{@link BusinessRuleException} → 422</li>
- *     <li>Validação do corpo, JSON inválido ou parâmetro com formato errado → 400</li>
+ *     <li>Validação do corpo ou dos parâmetros de paginação, JSON inválido ou parâmetro com formato errado → 400</li>
  * </ul>
  */
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
   private static final String INVALID_REQUEST = "Requisição inválida";
+  private static final String INVALID_VALUE = "Valor inválido";
 
   private static ProblemDetail problem(
       HttpStatus status,
@@ -82,7 +83,10 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
   ) {
     var errors = new LinkedHashMap<String, String>();
     exception.getBindingResult().getFieldErrors()
-        .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
+        .forEach(error -> errors.putIfAbsent(
+            error.getField(),
+            error.isBindingFailure() ? INVALID_VALUE : error.getDefaultMessage()
+        ));
     var problem = problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, "Um ou mais campos são inválidos");
     problem.setProperty("errors", errors);
     return ResponseEntity.badRequest().body(problem);

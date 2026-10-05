@@ -65,19 +65,19 @@ class SaleApiIntegrationTest {
         .extractingPath("$.status")
         .isEqualTo("RESERVED");
 
-    var forSale = mvc.get().uri("/vehicles/for-sale").exchange();
+    var forSale = mvc.get().uri("/vehicles/for-sale?size=100").exchange();
     assertThat(forSale)
         .hasStatus(HttpStatus.OK)
         .bodyJson()
-        .extractingPath("$[*].id")
+        .extractingPath("$.content[*].id")
         .asArray()
         .doesNotContain(vehicleId);
 
-    var soldVehicles = mvc.get().uri("/vehicles/sold").exchange();
+    var soldVehicles = mvc.get().uri("/vehicles/sold?size=100").exchange();
     assertThat(soldVehicles)
         .hasStatus(HttpStatus.OK)
         .bodyJson()
-        .extractingPath("$[*].vehicle.id")
+        .extractingPath("$.content[*].vehicle.id")
         .asArray()
         .doesNotContain(vehicleId);
   }

@@ -1,6 +1,7 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.pagination.PageQuery;
@@ -21,6 +22,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
@@ -28,7 +31,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
- * Testes da camada web das listagens de veículos: contrato JSON e ordem definida pelos casos de uso.
+ * Testes da camada web das listagens de veículos: contrato JSON da página, ordem definida pelos casos de uso e
+ * validação dos parâmetros de paginação.
  */
 @WebMvcTest(VehicleListingController.class)
 class VehicleListingControllerTest {
@@ -117,9 +121,104 @@ class VehicleListingControllerTest {
     assertThat(response)
         .hasStatus(HttpStatus.OK)
         .bodyJson()
-        .extractingPath("$[*].salePrice")
+        .extractingPath("$.content[*].salePrice")
         .asArray()
         .containsExactly(20000.00, 35000.00);
+  }
+
+  @Test
+  void passesRequestedPageAndReturnsPaginationData() {
+    var pageQuery = new PageQuery(2, 5);
+    when(listVehiclesForSale.execute(pageQuery)).thenReturn(new PageResult<>(
+        List.of(vehicle("20000", VehicleStatus.AVAILABLE, 1)),
+        2,
+        5,
+        11
+    ));
+
+    var response = mvc.get().uri("/vehicles/for-sale?page=2&size=5").exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "content": [
+                {
+                  "salePrice": 20000.00
+                }
+              ],
+              "page": 2,
+              "size": 5,
+              "totalElements": 11,
+              "totalPages": 3
+            }
+            """);
+  }
+
+  @Test
+  void returnsEmptyContentWhenNoVehicleIsForSale() {
+    when(listVehiclesForSale.execute(PageQuery.first())).thenReturn(firstPage(List.of()));
+
+    var response = mvc.get().uri("/vehicles/for-sale").exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "content": [],
+              "page": 0,
+              "size": 20,
+              "totalElements": 0,
+              "totalPages": 0
+            }
+            """);
+  }
+
+  @ParameterizedTest
+  @CsvSource(delimiter = '|', value = {
+      "/vehicles/for-sale?page=-1 | page | A página deve ser maior ou igual a zero",
+      "/vehicles/for-sale?size=0  | size | O tamanho da página deve estar entre 1 e 100",
+      "/vehicles/for-sale?size=101 | size | O tamanho da página deve estar entre 1 e 100",
+      "/vehicles/for-sale?page=abc | page | Valor inválido",
+      "/vehicles/sold?page=-1 | page | A página deve ser maior ou igual a zero",
+      "/vehicles/sold?size=101 | size | O tamanho da página deve estar entre 1 e 100"
+  })
+  void rejectsInvalidPaginationParameters(
+      String uri,
+      String parameter,
+      String message
+  ) {
+    var response = mvc.get().uri(uri).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson()
+        .extractingPath("$.errors." + parameter)
+        .isEqualTo(message);
+    verifyNoInteractions(listVehiclesForSale, listSoldVehicles);
+  }
+
+  @Test
+  void passesRequestedPageToSoldVehicles() {
+    var pageQuery = new PageQuery(1, 2);
+    when(listSoldVehicles.execute(pageQuery)).thenReturn(new PageResult<>(List.of(), 1, 2, 2));
+
+    var response = mvc.get().uri("/vehicles/sold?page=1&size=2").exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "content": [],
+              "page": 1,
+              "size": 2,
+              "totalElements": 2,
+              "totalPages": 1
+            }
+            """);
   }
 
   @Test
@@ -136,30 +235,33 @@ class VehicleListingControllerTest {
         .hasStatus(HttpStatus.OK)
         .bodyJson()
         .isLenientlyEqualTo("""
-            [
-              {
-                "vehicle": {
-                  "brand": "Fiat",
-                  "salePrice": 20000.00,
-                  "status": "SOLD"
+            {
+              "content": [
+                {
+                  "vehicle": {
+                    "brand": "Fiat",
+                    "salePrice": 20000.00,
+                    "status": "SOLD"
+                  },
+                  "sale": {
+                    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                    "saleDate": "2026-10-01",
+                    "amount": 20000.00,
+                    "buyerCpf": "52998224725"
+                  }
                 },
-                "sale": {
-                  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-                  "saleDate": "2026-10-01",
-                  "amount": 20000.00,
-                  "buyerCpf": "52998224725"
+                {
+                  "sale": {
+                    "amount": 35000.00
+                  }
                 }
-              },
-              {
-                "sale": {
-                  "amount": 35000.00
-                }
-              }
-            ]
+              ],
+              "totalElements": 2
+            }
             """);
     assertThat(response)
         .bodyJson()
-        .extractingPath("$[*].sale.amount")
+        .extractingPath("$.content[*].sale.amount")
         .asArray()
         .containsExactly(20000.00, 35000.00);
   }

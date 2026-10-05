@@ -133,11 +133,11 @@ class VehicleApiIntegrationTest {
             }
             """);
 
-    var forSale = mvc.get().uri("/vehicles/for-sale").exchange();
+    var forSale = mvc.get().uri("/vehicles/for-sale?size=100").exchange();
     assertThat(forSale)
         .hasStatus(HttpStatus.OK)
         .bodyJson()
-        .extractingPath("$[*].brand")
+        .extractingPath("$.content[*].brand")
         .asArray()
         .contains("Renault");
   }
@@ -223,6 +223,11 @@ class VehicleApiIntegrationTest {
               }
             }
             """);
+    assertThat(docs)
+        .bodyJson()
+        .extractingPath("$.paths['/vehicles/for-sale'].get.parameters[*].name")
+        .asArray()
+        .containsExactly("page", "size");
     assertThat(mvc.get().uri("/swagger-ui/index.html").exchange()).hasStatus(HttpStatus.OK);
   }
 }
