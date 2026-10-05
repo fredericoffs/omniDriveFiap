@@ -1,4 +1,4 @@
-package br.com.fiap.omnidrive.application.usecase;
+package br.com.fiap.omnidrive.application.usecase.vehicle;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;

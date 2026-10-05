@@ -2,11 +2,11 @@ package br.com.fiap.omnidrive.infrastructure.config;
 
 import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
-import br.com.fiap.omnidrive.application.usecase.DeleteVehicle;
-import br.com.fiap.omnidrive.application.usecase.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.SearchVehicles;
+import br.com.fiap.omnidrive.application.usecase.vehicle.DeleteVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReleaseVehicleForSale;

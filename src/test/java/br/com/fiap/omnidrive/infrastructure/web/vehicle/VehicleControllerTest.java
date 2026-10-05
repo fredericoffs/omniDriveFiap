@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import br.com.fiap.omnidrive.application.usecase.DeleteVehicle;
-import br.com.fiap.omnidrive.application.usecase.GetVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.DeleteVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicleInput;

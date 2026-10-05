@@ -1,7 +1,7 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
-import br.com.fiap.omnidrive.application.usecase.DeleteVehicle;
-import br.com.fiap.omnidrive.application.usecase.GetVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.DeleteVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.GetVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicle;
 import io.swagger.v3.oas.annotations.Operation;
