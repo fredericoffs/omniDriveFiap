@@ -8,6 +8,7 @@ import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.SearchVehicles;
 import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
 import br.com.fiap.omnidrive.application.usecase.UpdateVehicle;
 import org.springframework.context.annotation.Bean;
@@ -48,6 +49,11 @@ public class VehicleUseCaseConfig {
   @Bean
   ReadmitVehicle readmitVehicle(VehicleGateway vehicleGateway) {
     return new ReadmitVehicle(vehicleGateway);
+  }
+
+  @Bean
+  SearchVehicles searchVehicles(VehicleGateway vehicleGateway) {
+    return new SearchVehicles(vehicleGateway);
   }
 
   @Bean

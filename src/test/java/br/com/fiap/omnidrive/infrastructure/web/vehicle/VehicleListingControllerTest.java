@@ -1,6 +1,7 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -8,9 +9,12 @@ import br.com.fiap.omnidrive.application.pagination.PageQuery;
 import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
+import br.com.fiap.omnidrive.application.usecase.SearchVehicles;
+import br.com.fiap.omnidrive.application.usecase.SearchVehiclesInput;
 import br.com.fiap.omnidrive.application.usecase.SoldVehicle;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.sale.Sale;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
 import br.com.fiap.omnidrive.domain.vehicle.Plate;
@@ -20,6 +24,7 @@ import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,8 +36,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
- * Testes da camada web das listagens de veículos: contrato JSON da página, ordem definida pelos casos de uso e
- * validação dos parâmetros de paginação.
+ * Testes da camada web das listagens de veículos: repasse dos filtros da busca, contrato JSON da página, ordem
+ * definida pelos casos de uso e validação dos parâmetros.
  */
 @WebMvcTest(VehicleListingController.class)
 class VehicleListingControllerTest {
@@ -41,6 +46,9 @@ class VehicleListingControllerTest {
 
   @Autowired
   private MockMvcTester mvc;
+
+  @MockitoBean
+  private SearchVehicles searchVehicles;
 
   @MockitoBean
   private ListVehiclesForSale listVehiclesForSale;
@@ -107,6 +115,74 @@ class VehicleListingControllerTest {
 
   private static <T> PageResult<T> firstPage(List<T> content) {
     return new PageResult<>(content, 0, PageQuery.DEFAULT_SIZE, content.size());
+  }
+
+  @Test
+  void searchPassesFiltersAndRequestedPage() {
+    var input = new SearchVehiclesInput(
+        "abc-1234",
+        "9BWZZZ377LT004251",
+        Set.of(VehicleStatus.RECEIVED, VehicleStatus.SOLD),
+        "hon",
+        "civ"
+    );
+    when(searchVehicles.execute(input, new PageQuery(1, 5))).thenReturn(new PageResult<>(
+        List.of(vehicle("40000", VehicleStatus.RECEIVED, 0)),
+        1,
+        5,
+        6
+    ));
+
+    var response = mvc.get()
+        .uri("/vehicles?plate=abc-1234&chassis=9BWZZZ377LT004251&status=RECEIVED&status=SOLD&brand=hon&model=civ"
+            + "&page=1&size=5")
+        .exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "content": [
+                {
+                  "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "status": "RECEIVED"
+                }
+              ],
+              "page": 1,
+              "size": 5,
+              "totalElements": 6,
+              "totalPages": 2
+            }
+            """);
+  }
+
+  @Test
+  void searchWithoutFiltersUsesFirstPage() {
+    var input = new SearchVehiclesInput(null, null, null, null, null);
+    when(searchVehicles.execute(input, PageQuery.first())).thenReturn(firstPage(List.of()));
+
+    var response = mvc.get().uri("/vehicles").exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.totalElements")
+        .isEqualTo(0);
+  }
+
+  @Test
+  void searchRejectsInvalidPlateWith422() {
+    when(searchVehicles.execute(any(), any()))
+        .thenThrow(new BusinessRuleException("A placa deve seguir o padrão antigo (ABC-1234) ou o Mercosul (ABC1D23)"));
+
+    var response = mvc.get().uri("/vehicles?plate=AB-12").exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("A placa deve seguir o padrão antigo (ABC-1234) ou o Mercosul (ABC1D23)");
   }
 
   @Test
@@ -183,7 +259,9 @@ class VehicleListingControllerTest {
       "/vehicles/for-sale?size=101 | size | O tamanho da página deve estar entre 1 e 100",
       "/vehicles/for-sale?page=abc | page | Valor inválido",
       "/vehicles/sold?page=-1 | page | A página deve ser maior ou igual a zero",
-      "/vehicles/sold?size=101 | size | O tamanho da página deve estar entre 1 e 100"
+      "/vehicles/sold?size=101 | size | O tamanho da página deve estar entre 1 e 100",
+      "/vehicles?status=XYZ | status | Valor inválido",
+      "/vehicles?status=AVAILABLE&size=0 | size | O tamanho da página deve estar entre 1 e 100"
   })
   void rejectsInvalidPaginationParameters(
       String uri,
@@ -197,7 +275,7 @@ class VehicleListingControllerTest {
         .bodyJson()
         .extractingPath("$.errors." + parameter)
         .isEqualTo(message);
-    verifyNoInteractions(listVehiclesForSale, listSoldVehicles);
+    verifyNoInteractions(searchVehicles, listVehiclesForSale, listSoldVehicles);
   }
 
   @Test

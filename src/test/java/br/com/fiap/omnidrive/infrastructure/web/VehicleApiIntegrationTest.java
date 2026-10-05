@@ -203,6 +203,47 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void findsRegisteredVehicleBySearch() {
+    var created = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("BUS1005", "Chevrolet", null))
+        .exchange();
+    assertThat(created).hasStatus(HttpStatus.CREATED);
+
+    var byPlate = mvc.get().uri("/vehicles?plate=bus-1005").exchange();
+    assertThat(byPlate)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "content": [
+                {
+                  "plate": "BUS1005",
+                  "brand": "Chevrolet",
+                  "status": "RECEIVED"
+                }
+              ],
+              "totalElements": 1
+            }
+            """);
+
+    var byStatusAndBrand = mvc.get().uri("/vehicles?status=RECEIVED&brand=chevro&size=100").exchange();
+    assertThat(byStatusAndBrand)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.content[*].plate")
+        .asArray()
+        .contains("BUS1005");
+
+    var otherStatus = mvc.get().uri("/vehicles?plate=BUS1005&status=AVAILABLE").exchange();
+    assertThat(otherStatus)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.totalElements")
+        .isEqualTo(0);
+  }
+
+  @Test
   void publishesOpenApiDocumentation() {
     var docs = mvc.get().uri("/v3/api-docs").exchange();
 
@@ -218,6 +259,9 @@ class VehicleApiIntegrationTest {
                 "/vehicles": {
                   "post": {
                     "summary": "Cadastrar veículo"
+                  },
+                  "get": {
+                    "summary": "Buscar veículos"
                   }
                 }
               }
