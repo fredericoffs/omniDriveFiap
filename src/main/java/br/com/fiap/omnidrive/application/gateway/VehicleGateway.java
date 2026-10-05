@@ -1,11 +1,12 @@
 package br.com.fiap.omnidrive.application.gateway;
 
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
+import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
 import br.com.fiap.omnidrive.domain.vehicle.Plate;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,12 +41,17 @@ public interface VehicleGateway {
   Optional<Vehicle> findById(UUID id);
 
   /**
-   * Lista os veículos com o status informado, ordenados pelo preço de venda, do menor para o maior.
+   * Lista uma página dos veículos com o status informado, ordenados pelo preço de venda, do menor para o maior. Preços
+   * iguais são desempatados pelo id, para que a ordem não mude entre uma página e outra.
    */
-  List<Vehicle> findByStatusOrderBySalePrice(VehicleStatus status);
+  PageResult<Vehicle> findByStatusOrderBySalePrice(
+      VehicleStatus status,
+      PageQuery pageQuery
+  );
 
   /**
-   * Lista os veículos Vendidos, ordenados pelo valor da venda atual, do menor para o maior.
+   * Lista uma página dos veículos Vendidos, ordenados pelo valor da venda atual, do menor para o maior. Valores iguais
+   * são desempatados pelo id do veículo, para que a ordem não mude entre uma página e outra.
    */
-  List<Vehicle> findSoldOrderBySaleAmount();
+  PageResult<Vehicle> findSoldOrderBySaleAmount(PageQuery pageQuery);
 }

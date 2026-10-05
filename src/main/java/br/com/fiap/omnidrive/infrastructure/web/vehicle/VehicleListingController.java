@@ -1,5 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
 import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleListingController {
+
+  // TODO: receber page e size nas listagens e devolver a página com os dados de paginação (PageResponse), com 400 fora dos limites
 
   private final ListVehiclesForSale listVehiclesForSale;
   private final ListSoldVehicles listSoldVehicles;
@@ -37,7 +40,7 @@ public class VehicleListingController {
   @ApiResponse(responseCode = "200", description = "Veículos à venda; lista vazia se não houver nenhum")
   @GetMapping("/for-sale")
   List<VehicleResponse> listForSale() {
-    return listVehiclesForSale.execute().stream()
+    return listVehiclesForSale.execute(PageQuery.first()).content().stream()
         .map(VehicleResponse::from)
         .toList();
   }
@@ -51,7 +54,7 @@ public class VehicleListingController {
   @ApiResponse(responseCode = "200", description = "Veículos vendidos; lista vazia se não houver nenhum")
   @GetMapping("/sold")
   List<SoldVehicleResponse> listSold() {
-    return listSoldVehicles.execute().stream()
+    return listSoldVehicles.execute(PageQuery.first()).content().stream()
         .map(SoldVehicleResponse::from)
         .toList();
   }

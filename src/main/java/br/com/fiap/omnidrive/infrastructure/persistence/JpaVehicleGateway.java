@@ -1,6 +1,8 @@
 package br.com.fiap.omnidrive.infrastructure.persistence;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
+import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
@@ -13,7 +15,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -107,18 +108,25 @@ public class JpaVehicleGateway implements VehicleGateway {
 
   @Override
   @Transactional(readOnly = true)
-  public List<Vehicle> findByStatusOrderBySalePrice(VehicleStatus status) {
-    return vehicleRepository.findByStatusOrderBySalePriceAsc(status).stream()
-        .map(VehicleEntity::toDomain)
-        .toList();
+  public PageResult<Vehicle> findByStatusOrderBySalePrice(
+      VehicleStatus status,
+      PageQuery pageQuery
+  ) {
+    var pageable = PageConversion.toPageable(pageQuery);
+    return PageConversion.toResult(
+        vehicleRepository.findByStatusOrderBySalePriceAscIdAsc(status, pageable),
+        VehicleEntity::toDomain
+    );
   }
 
   @Override
   @Transactional(readOnly = true)
-  public List<Vehicle> findSoldOrderBySaleAmount() {
-    return vehicleRepository.findByStatusOrderByCurrentSaleAmount(VehicleStatus.SOLD).stream()
-        .map(VehicleEntity::toDomain)
-        .toList();
+  public PageResult<Vehicle> findSoldOrderBySaleAmount(PageQuery pageQuery) {
+    var pageable = PageConversion.toPageable(pageQuery);
+    return PageConversion.toResult(
+        vehicleRepository.findByStatusOrderByCurrentSaleAmount(VehicleStatus.SOLD, pageable),
+        VehicleEntity::toDomain
+    );
   }
 
   private VehicleEntity loadWithSameVersion(Vehicle vehicle) {

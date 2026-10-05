@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
+import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.AlreadyExistsException;
@@ -16,6 +18,7 @@ import br.com.fiap.omnidrive.domain.vehicle.VehicleDetails;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleOrigin;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -98,6 +101,17 @@ class JpaVehicleGatewayTest {
     return vehicle;
   }
 
+  /**
+   * Ids na ordem do Postgres, que compara o {@code uuid} byte a byte, sem sinal. É a mesma ordem do texto do UUID, e
+   * não a do {@link UUID#compareTo}, que compara com sinal.
+   */
+  private static List<UUID> idsInDatabaseOrder(List<Vehicle> vehicles) {
+    return vehicles.stream()
+        .map(Vehicle::getId)
+        .sorted(Comparator.comparing(UUID::toString))
+        .toList();
+  }
+
   @Test
   void savesNewVehicleWithItsStatusHistory() {
     var vehicle = register("40000.50");
@@ -154,11 +168,50 @@ class JpaVehicleGatewayTest {
     List.of(expensive, cheap, middle, notAvailable).forEach(gateway::save);
     flushAndClear();
 
-    var vehicles = gateway.findByStatusOrderBySalePrice(VehicleStatus.AVAILABLE);
+    var page = gateway.findByStatusOrderBySalePrice(VehicleStatus.AVAILABLE, PageQuery.first());
 
-    assertThat(vehicles)
+    assertThat(page.content())
         .extracting(Vehicle::getId)
         .containsExactly(cheap.getId(), middle.getId(), expensive.getId());
+    assertThat(page.totalElements()).isEqualTo(3);
+  }
+
+  @Test
+  void returnsRequestedPageOfVehiclesWithStatus() {
+    var vehicles = List.of(
+        available("10000"),
+        available("20000"),
+        available("30000"),
+        available("40000"),
+        available("50000")
+    );
+    vehicles.forEach(gateway::save);
+    gateway.save(register("15000"));
+    flushAndClear();
+
+    var page = gateway.findByStatusOrderBySalePrice(VehicleStatus.AVAILABLE, new PageQuery(1, 2));
+
+    assertThat(page)
+        .returns(1, PageResult::page)
+        .returns(2, PageResult::size)
+        .returns(5L, PageResult::totalElements)
+        .returns(3, PageResult::totalPages);
+    assertThat(page.content())
+        .extracting(Vehicle::getId)
+        .containsExactly(vehicles.get(2).getId(), vehicles.get(3).getId());
+  }
+
+  @Test
+  void breaksSalePriceTiesById() {
+    var vehicles = List.of(available("30000"), available("30000"), available("30000"));
+    vehicles.forEach(gateway::save);
+    flushAndClear();
+
+    var page = gateway.findByStatusOrderBySalePrice(VehicleStatus.AVAILABLE, PageQuery.first());
+
+    assertThat(page.content())
+        .extracting(Vehicle::getId)
+        .containsExactlyElementsOf(idsInDatabaseOrder(vehicles));
   }
 
   @Test
@@ -236,11 +289,45 @@ class JpaVehicleGatewayTest {
     gateway.save(available("5000"));
     flushAndClear();
 
-    var vehicles = gateway.findSoldOrderBySaleAmount();
+    var page = gateway.findSoldOrderBySaleAmount(PageQuery.first());
 
-    assertThat(vehicles)
+    assertThat(page.content())
         .extracting(Vehicle::getId)
         .containsExactly(cheap.getId(), middle.getId(), expensive.getId());
+    assertThat(page.totalElements()).isEqualTo(3);
+  }
+
+  @Test
+  void returnsRequestedPageOfSoldVehicles() {
+    var cheap = sold("20000");
+    var middle = sold("35000");
+    var expensive = sold("50000");
+    gateway.save(available("5000"));
+    flushAndClear();
+
+    var page = gateway.findSoldOrderBySaleAmount(new PageQuery(0, 2));
+
+    assertThat(page)
+        .returns(0, PageResult::page)
+        .returns(2, PageResult::size)
+        .returns(3L, PageResult::totalElements)
+        .returns(2, PageResult::totalPages);
+    assertThat(page.content())
+        .extracting(Vehicle::getId)
+        .containsExactly(cheap.getId(), middle.getId())
+        .doesNotContain(expensive.getId());
+  }
+
+  @Test
+  void breaksSaleAmountTiesByVehicleId() {
+    var vehicles = List.of(sold("30000"), sold("30000"), sold("30000"));
+    flushAndClear();
+
+    var page = gateway.findSoldOrderBySaleAmount(PageQuery.first());
+
+    assertThat(page.content())
+        .extracting(Vehicle::getId)
+        .containsExactlyElementsOf(idsInDatabaseOrder(vehicles));
   }
 
   @Test

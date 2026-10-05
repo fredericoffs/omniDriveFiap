@@ -5,6 +5,8 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
+import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.sale.Sale;
@@ -81,30 +83,40 @@ class ListSoldVehiclesTest {
   }
 
   @Test
-  void pairsEachVehicleWithItsCurrentSaleKeepingGatewayOrder() {
+  void pairsEachVehicleWithItsCurrentSaleKeepingGatewayOrderAndPagination() {
+    var pageQuery = new PageQuery(1, 2);
     var cheapSaleId = UUID.randomUUID();
     var expensiveSaleId = UUID.randomUUID();
     var cheap = sold("ABC1001", cheapSaleId);
     var expensive = sold("ABC1002", expensiveSaleId);
     var cheapSale = sale(cheapSaleId, cheap, "20000");
     var expensiveSale = sale(expensiveSaleId, expensive, "50000");
-    when(vehicleGateway.findSoldOrderBySaleAmount()).thenReturn(List.of(cheap, expensive));
+    when(vehicleGateway.findSoldOrderBySaleAmount(pageQuery))
+        .thenReturn(new PageResult<>(List.of(cheap, expensive), 1, 2, 4));
     when(saleGateway.findAllById(List.of(cheapSaleId, expensiveSaleId)))
         .thenReturn(List.of(expensiveSale, cheapSale));
 
-    var soldVehicles = listSoldVehicles.execute();
+    var soldVehicles = listSoldVehicles.execute(pageQuery);
 
-    assertThat(soldVehicles).containsExactly(
-        new SoldVehicle(cheap, cheapSale),
-        new SoldVehicle(expensive, expensiveSale)
-    );
+    assertThat(soldVehicles).isEqualTo(new PageResult<>(
+        List.of(
+            new SoldVehicle(cheap, cheapSale),
+            new SoldVehicle(expensive, expensiveSale)
+        ),
+        1,
+        2,
+        4
+    ));
   }
 
   @Test
-  void returnsEmptyListWhenNoVehicleIsSold() {
-    when(vehicleGateway.findSoldOrderBySaleAmount()).thenReturn(List.of());
+  void returnsEmptyPageWhenNoVehicleIsSold() {
+    var pageQuery = PageQuery.first();
+    when(vehicleGateway.findSoldOrderBySaleAmount(pageQuery)).thenReturn(new PageResult<>(List.of(), 0, 20, 0));
     when(saleGateway.findAllById(List.of())).thenReturn(List.of());
 
-    assertThat(listSoldVehicles.execute()).isEmpty();
+    assertThat(listSoldVehicles.execute(pageQuery))
+        .returns(List.of(), PageResult::content)
+        .returns(0L, PageResult::totalElements);
   }
 }

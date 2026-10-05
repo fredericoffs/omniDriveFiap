@@ -1,15 +1,16 @@
 package br.com.fiap.omnidrive.application.usecase;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
+import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
  * Caso de uso: listar os veículos à venda. Só entram veículos Disponíveis, ordenados pelo preço de venda, do menor
- * para o maior.
+ * para o maior, com desempate pelo id.
  */
 public class ListVehiclesForSale {
 
@@ -20,9 +21,12 @@ public class ListVehiclesForSale {
   }
 
   /**
-   * @return os veículos à venda, em ordem crescente de preço
+   * @return a página pedida dos veículos à venda, em ordem crescente de preço
    */
-  public List<Vehicle> execute() {
-    return vehicleGateway.findByStatusOrderBySalePrice(VehicleStatus.AVAILABLE);
+  public PageResult<Vehicle> execute(PageQuery pageQuery) {
+    return vehicleGateway.findByStatusOrderBySalePrice(
+        VehicleStatus.AVAILABLE,
+        Objects.requireNonNull(pageQuery)
+    );
   }
 }

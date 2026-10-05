@@ -3,6 +3,8 @@ package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import br.com.fiap.omnidrive.application.pagination.PageQuery;
+import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
 import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.SoldVehicle;
@@ -99,12 +101,16 @@ class VehicleListingControllerTest {
     return new SoldVehicle(vehicle, sale);
   }
 
+  private static <T> PageResult<T> firstPage(List<T> content) {
+    return new PageResult<>(content, 0, PageQuery.DEFAULT_SIZE, content.size());
+  }
+
   @Test
   void listsVehiclesForSaleKeepingUseCaseOrder() {
-    when(listVehiclesForSale.execute()).thenReturn(List.of(
+    when(listVehiclesForSale.execute(PageQuery.first())).thenReturn(firstPage(List.of(
         vehicle("20000", VehicleStatus.AVAILABLE, 1),
         vehicle("35000", VehicleStatus.AVAILABLE, 1)
-    ));
+    )));
 
     var response = mvc.get().uri("/vehicles/for-sale").exchange();
 
@@ -119,10 +125,10 @@ class VehicleListingControllerTest {
   @Test
   void listsSoldVehiclesWithCurrentSaleKeepingUseCaseOrder() {
     var saleId = UUID.fromString("7c9e6679-7425-40de-944b-e07fc1f90ae7");
-    when(listSoldVehicles.execute()).thenReturn(List.of(
+    when(listSoldVehicles.execute(PageQuery.first())).thenReturn(firstPage(List.of(
         soldVehicle(saleId, "20000"),
         soldVehicle(UUID.randomUUID(), "35000")
-    ));
+    )));
 
     var response = mvc.get().uri("/vehicles/sold").exchange();
 
