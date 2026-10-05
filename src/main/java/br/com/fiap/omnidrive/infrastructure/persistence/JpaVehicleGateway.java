@@ -1,5 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.persistence;
 
+import br.com.fiap.omnidrive.application.gateway.VehicleFilter;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.application.pagination.PageQuery;
 import br.com.fiap.omnidrive.application.pagination.PageResult;
@@ -12,6 +13,7 @@ import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,10 @@ public class JpaVehicleGateway implements VehicleGateway {
 
   private static final String CHASSIS_CONSTRAINT = "uk_vehicle_chassis";
   private static final String PLATE_CONSTRAINT = "uk_vehicle_plate";
+  private static final Sort SEARCH_ORDER = Sort.by(
+      Sort.Order.desc("createdAt"),
+      Sort.Order.asc("id")
+  );
 
   private final VehicleJpaRepository vehicleRepository;
   private final VehicleStatusHistoryJpaRepository statusHistoryRepository;
@@ -125,6 +131,19 @@ public class JpaVehicleGateway implements VehicleGateway {
     var pageable = PageConversion.toPageable(pageQuery);
     return PageConversion.toResult(
         vehicleRepository.findByStatusOrderByCurrentSaleAmount(VehicleStatus.SOLD, pageable),
+        VehicleEntity::toDomain
+    );
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public PageResult<Vehicle> search(
+      VehicleFilter filter,
+      PageQuery pageQuery
+  ) {
+    var pageable = PageConversion.toPageable(pageQuery, SEARCH_ORDER);
+    return PageConversion.toResult(
+        vehicleRepository.findAll(VehicleSpecifications.matching(filter), pageable),
         VehicleEntity::toDomain
     );
   }

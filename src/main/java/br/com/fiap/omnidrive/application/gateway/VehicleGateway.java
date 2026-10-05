@@ -54,4 +54,13 @@ public interface VehicleGateway {
    * são desempatados pelo id do veículo, para que a ordem não mude entre uma página e outra.
    */
   PageResult<Vehicle> findSoldOrderBySaleAmount(PageQuery pageQuery);
+
+  /**
+   * Busca uma página dos veículos que atendem a todos os filtros informados, em qualquer status. O resultado vem do
+   * cadastro mais recente para o mais antigo, com desempate pelo id.
+   */
+  PageResult<Vehicle> search(
+      VehicleFilter filter,
+      PageQuery pageQuery
+  );
 }

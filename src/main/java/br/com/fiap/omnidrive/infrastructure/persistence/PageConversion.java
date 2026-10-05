@@ -6,10 +6,12 @@ import java.util.function.Function;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * Conversão entre os tipos de paginação da aplicação ({@link PageQuery} e {@link PageResult}) e os do Spring Data.
- * A ordenação não vai no {@link Pageable}: ela é fixa e fica em cada consulta do repositório.
+ * A ordenação é sempre fixa: fica na consulta do repositório ou, nas consultas por {@code Specification}, no
+ * {@link Sort} passado aqui.
  */
 final class PageConversion {
 
@@ -18,6 +20,13 @@ final class PageConversion {
 
   static Pageable toPageable(PageQuery pageQuery) {
     return PageRequest.of(pageQuery.page(), pageQuery.size());
+  }
+
+  static Pageable toPageable(
+      PageQuery pageQuery,
+      Sort sort
+  ) {
+    return PageRequest.of(pageQuery.page(), pageQuery.size(), sort);
   }
 
   static <E, T> PageResult<T> toResult(

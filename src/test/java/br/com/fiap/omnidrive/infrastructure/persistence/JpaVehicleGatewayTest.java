@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import br.com.fiap.omnidrive.TestcontainersConfiguration;
+import br.com.fiap.omnidrive.application.gateway.VehicleFilter;
 import br.com.fiap.omnidrive.application.pagination.PageQuery;
 import br.com.fiap.omnidrive.application.pagination.PageResult;
 import br.com.fiap.omnidrive.domain.common.Cpf;
@@ -20,6 +21,7 @@ import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -75,6 +77,27 @@ class JpaVehicleGatewayTest {
             45000,
             Money.of("30000"),
             Money.of(salePrice),
+            VehicleOrigin.OWNED
+        )
+    );
+  }
+
+  private static Vehicle register(
+      String brand,
+      String model
+  ) {
+    var sequence = SEQUENCE.incrementAndGet();
+    return Vehicle.register(
+        new Chassis("9BWZZZ377LT00" + sequence),
+        new VehicleDetails(
+            brand,
+            model,
+            2020,
+            "Prata",
+            new Plate("ABC" + sequence),
+            45000,
+            Money.of("30000"),
+            Money.of("40000"),
             VehicleOrigin.OWNED
         )
     );
@@ -328,6 +351,86 @@ class JpaVehicleGatewayTest {
     assertThat(page.content())
         .extracting(Vehicle::getId)
         .containsExactlyElementsOf(idsInDatabaseOrder(vehicles));
+  }
+
+  @Test
+  void searchesByExactPlateAndChassis() {
+    var wanted = gateway.save(register("40000", "9BWZZZ377LT004251", "ABC1D23"));
+    gateway.save(register("40000", "9BWZZZ377LT004252", "ABC1D24"));
+    flushAndClear();
+
+    var byPlate = gateway.search(new VehicleFilter(new Plate("ABC1D23"), null, Set.of(), null, null), PageQuery.first());
+    var byChassis = gateway.search(
+        new VehicleFilter(null, new Chassis("9BWZZZ377LT004251"), Set.of(), null, null),
+        PageQuery.first()
+    );
+
+    assertThat(byPlate.content()).extracting(Vehicle::getId).containsExactly(wanted.getId());
+    assertThat(byChassis.content()).extracting(Vehicle::getId).containsExactly(wanted.getId());
+  }
+
+  @Test
+  void searchesByAnyOfTheStatuses() {
+    var received = gateway.save(register("40000"));
+    gateway.save(available("40000"));
+    var sold = sold("40000");
+    flushAndClear();
+
+    var page = gateway.search(
+        new VehicleFilter(null, null, Set.of(VehicleStatus.RECEIVED, VehicleStatus.SOLD), null, null),
+        PageQuery.first()
+    );
+
+    assertThat(page.content())
+        .extracting(Vehicle::getId)
+        .containsExactlyInAnyOrder(received.getId(), sold.getId());
+  }
+
+  @Test
+  void searchesBrandAndModelByCaseInsensitivePart() {
+    var civic = gateway.save(register("Honda", "Civic"));
+    var city = gateway.save(register("Honda", "City"));
+    gateway.save(register("Toyota", "Corolla"));
+    flushAndClear();
+
+    var byBrand = gateway.search(new VehicleFilter(null, null, Set.of(), "hon", null), PageQuery.first());
+    var byBrandAndModel = gateway.search(new VehicleFilter(null, null, Set.of(), "HON", "civ"), PageQuery.first());
+
+    assertThat(byBrand.content())
+        .extracting(Vehicle::getId)
+        .containsExactlyInAnyOrder(civic.getId(), city.getId());
+    assertThat(byBrandAndModel.content()).extracting(Vehicle::getId).containsExactly(civic.getId());
+  }
+
+  @Test
+  void treatsLikeWildcardsAsText() {
+    var percent = gateway.save(register("Marca 100%", "Uno"));
+    gateway.save(register("Fiat", "Uno"));
+    flushAndClear();
+
+    var byPercent = gateway.search(new VehicleFilter(null, null, Set.of(), "%", null), PageQuery.first());
+    var byUnderscore = gateway.search(new VehicleFilter(null, null, Set.of(), "f_at", null), PageQuery.first());
+
+    assertThat(byPercent.content()).extracting(Vehicle::getId).containsExactly(percent.getId());
+    assertThat(byUnderscore.content()).isEmpty();
+  }
+
+  @Test
+  void searchesAllVehiclesWithoutFiltersMostRecentFirst() {
+    var first = gateway.save(register("40000"));
+    var second = gateway.save(available("40000"));
+    var third = sold("40000");
+    flushAndClear();
+
+    var page = gateway.search(new VehicleFilter(null, null, Set.of(), null, null), new PageQuery(0, 2));
+
+    assertThat(page)
+        .returns(3L, PageResult::totalElements)
+        .returns(2, PageResult::totalPages);
+    assertThat(page.content())
+        .extracting(Vehicle::getId)
+        .containsExactly(third.getId(), second.getId())
+        .doesNotContain(first.getId());
   }
 
   @Test

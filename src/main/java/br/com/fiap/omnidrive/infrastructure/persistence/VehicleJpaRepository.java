@@ -5,12 +5,13 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 /**
  * Repositório Spring Data da tabela {@code vehicle}.
  */
-interface VehicleJpaRepository extends JpaRepository<VehicleEntity, UUID> {
+interface VehicleJpaRepository extends JpaRepository<VehicleEntity, UUID>, JpaSpecificationExecutor<VehicleEntity> {
 
   Page<VehicleEntity> findByStatusOrderBySalePriceAscIdAsc(
       VehicleStatus status,
