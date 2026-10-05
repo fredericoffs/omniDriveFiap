@@ -434,6 +434,55 @@ class JpaVehicleGatewayTest {
   }
 
   @Test
+  void deletesVehicleWithItsStatusHistory() {
+    var vehicle = register("40000");
+    gateway.save(vehicle);
+    flushAndClear();
+
+    gateway.delete(gateway.findById(vehicle.getId()).orElseThrow());
+    flushAndClear();
+
+    assertThat(gateway.findById(vehicle.getId())).isEmpty();
+    assertThat(statusHistory(vehicle.getId())).isEmpty();
+  }
+
+  @Test
+  void rejectsDeletionBasedOnOutdatedVersion() {
+    var vehicle = register("40000");
+    gateway.save(vehicle);
+    flushAndClear();
+    var firstRead = gateway.findById(vehicle.getId()).orElseThrow();
+    var secondRead = gateway.findById(vehicle.getId()).orElseThrow();
+
+    firstRead.startPreparation();
+    gateway.save(firstRead);
+
+    assertThatThrownBy(() -> gateway.delete(secondRead))
+        .isInstanceOf(ConcurrentUpdateException.class)
+        .hasMessageContaining(vehicle.getId().toString());
+    flushAndClear();
+    assertThat(gateway.findById(vehicle.getId()))
+        .get()
+        .extracting(Vehicle::getStatus)
+        .isEqualTo(VehicleStatus.IN_PREPARATION);
+    assertThat(statusHistory(vehicle.getId())).hasSize(2);
+  }
+
+  @Test
+  void rejectsDeletionOfVehicleThatWasAlreadyDeleted() {
+    var vehicle = register("40000");
+    gateway.save(vehicle);
+    flushAndClear();
+    var firstRead = gateway.findById(vehicle.getId()).orElseThrow();
+    var secondRead = gateway.findById(vehicle.getId()).orElseThrow();
+    gateway.delete(firstRead);
+
+    assertThatThrownBy(() -> gateway.delete(secondRead))
+        .isInstanceOf(ConcurrentUpdateException.class)
+        .hasMessageContaining(vehicle.getId().toString());
+  }
+
+  @Test
   void rejectsCurrentSaleThatDoesNotExist() {
     var vehicle = gateway.save(available("40000"));
     vehicle.reserve(UUID.randomUUID());

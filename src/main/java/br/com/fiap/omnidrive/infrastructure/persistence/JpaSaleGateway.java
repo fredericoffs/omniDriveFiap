@@ -41,4 +41,10 @@ public class JpaSaleGateway implements SaleGateway {
         .map(SaleEntity::toDomain)
         .toList();
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean existsByVehicleId(UUID vehicleId) {
+    return saleRepository.existsByVehicleId(vehicleId);
+  }
 }

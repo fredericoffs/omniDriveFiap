@@ -25,6 +25,8 @@ import java.util.UUID;
  * transação, com controle de concorrência otimista pela coluna {@code version}: a gravação é recusada se a versão
  * do veículo recebido não for a que está no banco.
  *
+ * <p>A exclusão apaga o histórico de status antes do veículo, por causa da FK, e também confere a versão.
+ *
  * <p>O caso de uso confere o chassi e a placa antes de gravar, mas dois cadastros simultâneos podem passar pela
  * conferência. Nesse caso, a restrição única do banco recusa o segundo, e a violação vira
  * {@link AlreadyExistsException}.
@@ -110,6 +112,19 @@ public class JpaVehicleGateway implements VehicleGateway {
   @Transactional(readOnly = true)
   public Optional<Vehicle> findById(UUID id) {
     return vehicleRepository.findById(id).map(VehicleEntity::toDomain);
+  }
+
+  @Override
+  @Transactional
+  public void delete(Vehicle vehicle) {
+    var entity = loadWithSameVersion(vehicle);
+    statusHistoryRepository.deleteByVehicleId(vehicle.getId());
+    try {
+      vehicleRepository.delete(entity);
+      vehicleRepository.flush();
+    } catch (OptimisticLockingFailureException _) {
+      throw concurrentUpdate(vehicle);
+    }
   }
 
   @Override

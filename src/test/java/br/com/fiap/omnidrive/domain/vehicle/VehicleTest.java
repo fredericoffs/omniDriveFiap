@@ -1,6 +1,7 @@
 package br.com.fiap.omnidrive.domain.vehicle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -370,5 +371,31 @@ class VehicleTest {
         .isInstanceOf(BusinessRuleException.class)
         .hasMessage("A quilometragem é obrigatória");
     assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.SOLD);
+  }
+
+  @Test
+  void allowsDeletionOfReceivedVehicleWithoutSales() {
+    var vehicle = register();
+
+    assertThatCode(() -> vehicle.ensureCanBeDeleted(false)).doesNotThrowAnyException();
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = "RECEIVED", mode = EnumSource.Mode.EXCLUDE)
+  void rejectsDeletionOutsideReceived(VehicleStatus status) {
+    var vehicle = restore(status);
+
+    assertThatThrownBy(() -> vehicle.ensureCanBeDeleted(false))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("O veículo não pode ser excluído com status " + status);
+  }
+
+  @Test
+  void rejectsDeletionOfReceivedVehicleThatHadSales() {
+    var vehicle = restore(VehicleStatus.RECEIVED);
+
+    assertThatThrownBy(() -> vehicle.ensureCanBeDeleted(true))
+        .isInstanceOf(BusinessRuleException.class)
+        .hasMessage("O veículo já teve venda e não pode ser excluído");
   }
 }

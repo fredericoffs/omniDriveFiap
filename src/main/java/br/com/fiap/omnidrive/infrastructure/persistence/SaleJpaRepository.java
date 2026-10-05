@@ -8,4 +8,6 @@ import java.util.UUID;
  * Repositório Spring Data da tabela {@code sale}.
  */
 interface SaleJpaRepository extends JpaRepository<SaleEntity, UUID> {
+
+  boolean existsByVehicleId(UUID vehicleId);
 }

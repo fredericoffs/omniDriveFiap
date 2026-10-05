@@ -28,4 +28,9 @@ public interface SaleGateway {
    * Busca as vendas com os ids informados, sem ordem definida. Ids sem venda são ignorados.
    */
   List<Sale> findAllById(Collection<UUID> ids);
+
+  /**
+   * Indica se o veículo tem alguma venda registrada, atual ou antiga, em qualquer status de pagamento.
+   */
+  boolean existsByVehicleId(UUID vehicleId);
 }

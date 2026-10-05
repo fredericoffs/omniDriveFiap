@@ -205,6 +205,22 @@ public class Vehicle {
   }
 
   /**
+   * Confere se o veículo pode ser excluído. Só o veículo Recebido que nunca teve venda pode ser excluído, para corrigir
+   * um cadastro errado. Um veículo que voltou pela reentrada também está Recebido, mas já teve venda.
+   *
+   * @param hasSales se o veículo tem alguma venda registrada, atual ou antiga
+   * @throws BusinessRuleException se o veículo não estiver Recebido ou já tiver tido venda
+   */
+  public void ensureCanBeDeleted(boolean hasSales) {
+    if (status != VehicleStatus.RECEIVED) {
+      throw new BusinessRuleException("O veículo não pode ser excluído com status " + status);
+    }
+    if (hasSales) {
+      throw new BusinessRuleException("O veículo já teve venda e não pode ser excluído");
+    }
+  }
+
+  /**
    * Indica se {@code saleId} é a venda atual. O pagamento de uma venda que não é a atual não muda o veículo.
    */
   public boolean isCurrentSale(UUID saleId) {

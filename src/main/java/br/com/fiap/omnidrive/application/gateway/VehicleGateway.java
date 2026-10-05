@@ -41,6 +41,14 @@ public interface VehicleGateway {
   Optional<Vehicle> findById(UUID id);
 
   /**
+   * Exclui o veículo e o seu histórico de status na mesma transação. A regra de quando a exclusão é permitida fica em
+   * {@link Vehicle#ensureCanBeDeleted(boolean)}.
+   *
+   * @throws br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException se o veículo foi alterado ou excluído por outra operação depois de lido
+   */
+  void delete(Vehicle vehicle);
+
+  /**
    * Lista uma página dos veículos com o status informado, ordenados pelo preço de venda, do menor para o maior. Preços
    * iguais são desempatados pelo id, para que a ordem não mude entre uma página e outra.
    */
