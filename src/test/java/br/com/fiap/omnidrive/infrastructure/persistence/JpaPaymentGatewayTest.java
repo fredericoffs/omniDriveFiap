@@ -145,6 +145,28 @@ class JpaPaymentGatewayTest {
     assertThat(gateway.findByPaymentCode("unknown-code")).isEmpty();
   }
 
+  @Test
+  void findsPaymentBySaleId() {
+    var payment = Payment.open(saleId);
+    gateway.save(payment);
+    flushAndClear();
+
+    var found = gateway.findBySaleId(saleId);
+
+    assertThat(found)
+        .get()
+        .satisfies(paymentFound -> {
+          assertThat(paymentFound.getId()).isEqualTo(payment.getId());
+          assertThat(paymentFound.getPaymentCode()).isEqualTo(payment.getPaymentCode());
+          assertThat(paymentFound.getStatus()).isEqualTo(PaymentStatus.AWAITING_PAYMENT);
+        });
+  }
+
+  @Test
+  void returnsEmptyWhenSaleHasNoPayment() {
+    assertThat(gateway.findBySaleId(UUID.randomUUID())).isEmpty();
+  }
+
   private Payment find(Payment payment) {
     var found = Objects.requireNonNull(entityManager.find(PaymentEntity.class, payment.getId())).toDomain();
     entityManager.clear();

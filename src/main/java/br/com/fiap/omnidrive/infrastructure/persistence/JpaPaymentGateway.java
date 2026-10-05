@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementação do {@link PaymentGateway} com JPA, com controle de concorrência otimista pela coluna {@code version}:
@@ -47,6 +48,12 @@ public class JpaPaymentGateway implements PaymentGateway {
   @Transactional(readOnly = true)
   public Optional<Payment> findByPaymentCode(String paymentCode) {
     return paymentRepository.findByPaymentCode(paymentCode).map(PaymentEntity::toDomain);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Payment> findBySaleId(UUID saleId) {
+    return paymentRepository.findBySaleId(saleId).map(PaymentEntity::toDomain);
   }
 
   private PaymentEntity loadWithSameVersion(Payment payment) {

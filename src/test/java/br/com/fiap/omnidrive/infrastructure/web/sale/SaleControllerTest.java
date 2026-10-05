@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
-import br.com.fiap.omnidrive.application.usecase.CreateSaleResult;
+import br.com.fiap.omnidrive.application.usecase.SaleWithPayment;
 import br.com.fiap.omnidrive.domain.common.Cpf;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
@@ -60,8 +60,8 @@ class SaleControllerTest {
   @MockitoBean
   private CreateSale createSale;
 
-  private static CreateSaleResult result() {
-    return new CreateSaleResult(
+  private static SaleWithPayment result() {
+    return new SaleWithPayment(
         Sale.restore(
             SALE_ID,
             VEHICLE_ID,

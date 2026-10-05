@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.sale;
 
-import br.com.fiap.omnidrive.application.usecase.CreateSaleResult;
+import br.com.fiap.omnidrive.application.usecase.SaleWithPayment;
 import br.com.fiap.omnidrive.domain.sale.PaymentStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -43,7 +43,7 @@ public record SaleResponse(
     PaymentStatus paymentStatus
 ) {
 
-  static SaleResponse from(CreateSaleResult result) {
+  static SaleResponse from(SaleWithPayment result) {
     var sale = result.sale();
     var payment = result.payment();
     return new SaleResponse(

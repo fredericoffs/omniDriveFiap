@@ -3,6 +3,7 @@ package br.com.fiap.omnidrive.application.gateway;
 import br.com.fiap.omnidrive.domain.sale.Payment;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Persistência de pagamentos, implementada pela camada de infraestrutura. O pagamento tem gateway próprio porque o
@@ -24,4 +25,9 @@ public interface PaymentGateway {
    * Busca um pagamento pelo código que o processador de pagamento usa no webhook.
    */
   Optional<Payment> findByPaymentCode(String paymentCode);
+
+  /**
+   * Busca o pagamento de uma venda. Cada venda tem um único pagamento.
+   */
+  Optional<Payment> findBySaleId(UUID saleId);
 }

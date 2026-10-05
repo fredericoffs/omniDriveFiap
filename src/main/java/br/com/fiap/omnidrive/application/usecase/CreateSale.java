@@ -50,7 +50,7 @@ public class CreateSale {
    * @throws ConcurrentUpdateException se o veículo foi alterado por outra operação durante a venda, como uma venda
    *     simultânea
    */
-  public CreateSaleResult execute(CreateSaleInput input) {
+  public SaleWithPayment execute(CreateSaleInput input) {
     Objects.requireNonNull(input);
     Objects.requireNonNull(input.vehicleId());
     return transactionRunner.inTransaction(() -> {
@@ -65,7 +65,7 @@ public class CreateSale {
       var savedSale = saleGateway.save(sale);
       var savedPayment = paymentGateway.save(Payment.open(savedSale.getId()));
       vehicleGateway.save(vehicle);
-      return new CreateSaleResult(savedSale, savedPayment);
+      return new SaleWithPayment(savedSale, savedPayment);
     });
   }
 }
