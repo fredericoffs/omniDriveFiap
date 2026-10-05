@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
-import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
+import br.com.fiap.omnidrive.application.usecase.sale.ListSoldVehicles;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.vehicle.SearchVehicles;
 import br.com.fiap.omnidrive.infrastructure.web.PageParams;

@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
-import br.com.fiap.omnidrive.application.usecase.SoldVehicle;
+import br.com.fiap.omnidrive.application.usecase.sale.SoldVehicle;
 import br.com.fiap.omnidrive.domain.sale.Sale;
 import io.swagger.v3.oas.annotations.media.Schema;
 

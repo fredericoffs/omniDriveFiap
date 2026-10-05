@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 
 import br.com.fiap.omnidrive.application.pagination.PageQuery;
 import br.com.fiap.omnidrive.application.pagination.PageResult;
-import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
-import br.com.fiap.omnidrive.application.usecase.SoldVehicle;
+import br.com.fiap.omnidrive.application.usecase.sale.ListSoldVehicles;
+import br.com.fiap.omnidrive.application.usecase.sale.SoldVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.vehicle.SearchVehicles;
 import br.com.fiap.omnidrive.application.usecase.vehicle.SearchVehiclesInput;

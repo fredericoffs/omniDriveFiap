@@ -1,4 +1,4 @@
-package br.com.fiap.omnidrive.application.usecase;
+package br.com.fiap.omnidrive.application.usecase.sale;
 
 import br.com.fiap.omnidrive.domain.sale.Sale;
 import br.com.fiap.omnidrive.domain.vehicle.Vehicle;
