@@ -1,8 +1,8 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
-import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
-import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
-import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.vehicle.StartVehiclePreparation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

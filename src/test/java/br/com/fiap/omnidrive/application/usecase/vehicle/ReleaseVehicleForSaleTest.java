@@ -1,4 +1,4 @@
-package br.com.fiap.omnidrive.application.usecase;
+package br.com.fiap.omnidrive.application.usecase.vehicle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,17 +26,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Testes do caso de uso {@link StartVehiclePreparation}.
+ * Testes do caso de uso {@link ReleaseVehicleForSale}.
  */
 @ExtendWith(MockitoExtension.class)
-class StartVehiclePreparationTest {
+class ReleaseVehicleForSaleTest {
 
   private static final UUID VEHICLE_ID = UUID.randomUUID();
 
   @Mock
   private VehicleGateway vehicleGateway;
 
-  private StartVehiclePreparation startVehiclePreparation;
+  private ReleaseVehicleForSale releaseVehicleForSale;
 
   private static Vehicle vehicle(VehicleStatus status) {
     return Vehicle.restore(
@@ -61,22 +61,22 @@ class StartVehiclePreparationTest {
 
   @BeforeEach
   void setUp() {
-    startVehiclePreparation = new StartVehiclePreparation(vehicleGateway);
+    releaseVehicleForSale = new ReleaseVehicleForSale(vehicleGateway);
   }
 
   @Test
-  void movesReceivedVehicleToPreparationAndSavesIt() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.RECEIVED)));
+  void releasesVehicleInPreparationAndSavesIt() {
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.IN_PREPARATION)));
     when(vehicleGateway.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-    var vehicle = startVehiclePreparation.execute(VEHICLE_ID);
+    var vehicle = releaseVehicleForSale.execute(VEHICLE_ID);
 
-    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
     assertThat(vehicle.getStatusChanges())
         .singleElement()
         .satisfies(history -> {
-          assertThat(history.previousStatus()).isEqualTo(VehicleStatus.RECEIVED);
-          assertThat(history.newStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
+          assertThat(history.previousStatus()).isEqualTo(VehicleStatus.IN_PREPARATION);
+          assertThat(history.newStatus()).isEqualTo(VehicleStatus.AVAILABLE);
         });
     verify(vehicleGateway).save(vehicle);
   }
@@ -85,7 +85,7 @@ class StartVehiclePreparationTest {
   void failsWhenVehicleDoesNotExist() {
     when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> startVehiclePreparation.execute(VEHICLE_ID))
+    assertThatThrownBy(() -> releaseVehicleForSale.execute(VEHICLE_ID))
         .isInstanceOf(NotFoundException.class)
         .hasMessageContaining(VEHICLE_ID.toString());
     verify(vehicleGateway, never()).save(any());
@@ -93,9 +93,9 @@ class StartVehiclePreparationTest {
 
   @Test
   void doesNotSaveWhenStatusDoesNotAllowTransition() {
-    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.AVAILABLE)));
+    when(vehicleGateway.findById(VEHICLE_ID)).thenReturn(Optional.of(vehicle(VehicleStatus.RECEIVED)));
 
-    assertThatThrownBy(() -> startVehiclePreparation.execute(VEHICLE_ID))
+    assertThatThrownBy(() -> releaseVehicleForSale.execute(VEHICLE_ID))
         .isInstanceOf(InvalidStatusTransitionException.class);
     verify(vehicleGateway, never()).save(any());
   }

@@ -7,10 +7,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import br.com.fiap.omnidrive.application.usecase.ReadmitVehicle;
-import br.com.fiap.omnidrive.application.usecase.ReadmitVehicleInput;
-import br.com.fiap.omnidrive.application.usecase.ReleaseVehicleForSale;
-import br.com.fiap.omnidrive.application.usecase.StartVehiclePreparation;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicle;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicleInput;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.vehicle.StartVehiclePreparation;
 import br.com.fiap.omnidrive.domain.common.Money;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
