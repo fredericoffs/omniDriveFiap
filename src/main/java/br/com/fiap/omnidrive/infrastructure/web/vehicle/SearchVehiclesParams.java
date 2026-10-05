@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
-import br.com.fiap.omnidrive.application.usecase.SearchVehiclesInput;
+import br.com.fiap.omnidrive.application.usecase.vehicle.SearchVehiclesInput;
 import br.com.fiap.omnidrive.domain.vehicle.VehicleStatus;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.util.Set;

@@ -1,8 +1,8 @@
 package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
 import br.com.fiap.omnidrive.application.usecase.ListSoldVehicles;
-import br.com.fiap.omnidrive.application.usecase.ListVehiclesForSale;
-import br.com.fiap.omnidrive.application.usecase.SearchVehicles;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ListVehiclesForSale;
+import br.com.fiap.omnidrive.application.usecase.vehicle.SearchVehicles;
 import br.com.fiap.omnidrive.infrastructure.web.PageParams;
 import br.com.fiap.omnidrive.infrastructure.web.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;

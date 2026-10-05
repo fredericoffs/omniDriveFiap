@@ -1,4 +1,4 @@
-package br.com.fiap.omnidrive.application.usecase;
+package br.com.fiap.omnidrive.application.usecase.vehicle;
 
 import br.com.fiap.omnidrive.application.gateway.VehicleFilter;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
