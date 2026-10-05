@@ -1,6 +1,6 @@
 package br.com.fiap.omnidrive.infrastructure.web.webhook;
 
-import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResult;
+import br.com.fiap.omnidrive.application.usecase.sale.ProcessPaymentResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;

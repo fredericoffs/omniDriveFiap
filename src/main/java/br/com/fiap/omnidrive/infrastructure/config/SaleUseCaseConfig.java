@@ -7,7 +7,7 @@ import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
 import br.com.fiap.omnidrive.application.usecase.CancelSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.GetSale;
-import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResult;
+import br.com.fiap.omnidrive.application.usecase.sale.ProcessPaymentResult;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

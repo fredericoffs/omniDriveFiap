@@ -6,8 +6,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResult;
-import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResultInput;
+import br.com.fiap.omnidrive.application.usecase.sale.ProcessPaymentResult;
+import br.com.fiap.omnidrive.application.usecase.sale.ProcessPaymentResultInput;
 import br.com.fiap.omnidrive.domain.exception.ConcurrentUpdateException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.exception.NotFoundException;
