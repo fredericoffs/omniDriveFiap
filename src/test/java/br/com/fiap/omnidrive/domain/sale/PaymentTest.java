@@ -17,11 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Testes da abertura de um {@link Payment}, do efeito de cada resultado do processador em cada status e do efeito de
- * cada status no veículo.
+ * Testes da abertura de um {@link Payment}, do efeito de cada resultado do processador em cada status, do cancelamento
+ * pela loja e do efeito de cada status no veículo.
  */
 class PaymentTest {
 
@@ -137,6 +138,44 @@ class PaymentTest {
         .isInstanceOf(InvalidStatusTransitionException.class)
         .hasMessage("Não é possível registrar o resultado " + result + " em um pagamento com status " + current);
     assertThat(payment.getStatus()).isEqualTo(current);
+  }
+
+  @Test
+  void storeCancelsPaymentAwaitingPayment() {
+    var payment = restore(PaymentStatus.AWAITING_PAYMENT);
+
+    assertThat(payment.cancel()).isTrue();
+    assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELED);
+  }
+
+  @Test
+  void ignoresRepeatedCancellation() {
+    var payment = restore(PaymentStatus.CANCELED);
+
+    assertThat(payment.cancel()).isFalse();
+    assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELED);
+  }
+
+  @ParameterizedTest
+  @EnumSource(names = {"PAID", "DECLINED", "REFUNDED"})
+  void rejectsCancellationAfterResult(PaymentStatus current) {
+    var payment = restore(current);
+
+    assertThatThrownBy(payment::cancel)
+        .isInstanceOf(InvalidStatusTransitionException.class)
+        .hasMessage("A venda não pode ser cancelada com o pagamento em " + current);
+    assertThat(payment.getStatus()).isEqualTo(current);
+  }
+
+  @Test
+  void storeCancellationReleasesReservationOfCurrentSale() {
+    var payment = restore(PaymentStatus.AWAITING_PAYMENT);
+    var vehicle = vehicle(VehicleStatus.RESERVED, SALE_ID);
+    payment.cancel();
+
+    assertThat(payment.applyTo(vehicle)).isTrue();
+    assertThat(vehicle.getStatus()).isEqualTo(VehicleStatus.AVAILABLE);
+    assertThat(vehicle.getCurrentSaleId()).isNull();
   }
 
   @ParameterizedTest

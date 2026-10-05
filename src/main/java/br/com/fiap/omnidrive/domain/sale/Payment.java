@@ -21,6 +21,9 @@ import java.util.UUID;
  *     reconciliados.</li>
  * </ul>
  *
+ * <p>A loja também pode cancelar a venda enquanto o pagamento aguarda ({@link #cancel()}): Aguardando Pagamento →
+ * Cancelado, com o mesmo efeito no veículo do {@code CANCELED} do processador.
+ *
  * <p>Efeito de cada status no veículo ({@link #applyTo(Vehicle)}), só quando a venda deste pagamento é a venda atual
  * do veículo:
  * <ul>
@@ -92,6 +95,24 @@ public class Payment {
       return false;
     }
     status = next;
+    return true;
+  }
+
+  /**
+   * Cancela o pagamento a pedido da loja, que desistiu da venda antes do resultado do processador. Premissa: a loja
+   * também cancela a cobrança no processador.
+   *
+   * @return {@code true} se o status mudou, {@code false} se o pagamento já estava Cancelado
+   * @throws InvalidStatusTransitionException se o pagamento estiver Pago, Recusado ou Estornado
+   */
+  public boolean cancel() {
+    if (status == PaymentStatus.CANCELED) {
+      return false;
+    }
+    if (status != PaymentStatus.AWAITING_PAYMENT) {
+      throw new InvalidStatusTransitionException("A venda não pode ser cancelada com o pagamento em " + status);
+    }
+    status = PaymentStatus.CANCELED;
     return true;
   }
 
