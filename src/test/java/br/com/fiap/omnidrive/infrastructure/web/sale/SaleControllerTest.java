@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import br.com.fiap.omnidrive.application.usecase.CancelSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSaleInput;
 import br.com.fiap.omnidrive.application.usecase.GetSale;
@@ -64,6 +65,9 @@ class SaleControllerTest {
   @MockitoBean
   private GetSale getSale;
 
+  @MockitoBean
+  private CancelSale cancelSale;
+
   private static SaleWithPayment result() {
     return new SaleWithPayment(
         Sale.restore(
@@ -79,6 +83,32 @@ class SaleControllerTest {
             SALE_ID,
             PaymentStatus.AWAITING_PAYMENT,
             0
+        )
+    );
+  }
+
+  private static SaleWithPayment canceled() {
+    var canceled = result();
+    canceled.payment().cancel();
+    return canceled;
+  }
+
+  private static Stream<Arguments> cancelExceptions() {
+    return Stream.of(
+        Arguments.of(
+            new NotFoundException("Venda não encontrada"),
+            HttpStatus.NOT_FOUND,
+            "Recurso não encontrado"
+        ),
+        Arguments.of(
+            new ConcurrentUpdateException("Pagamento alterado"),
+            HttpStatus.CONFLICT,
+            "Conflito de atualização"
+        ),
+        Arguments.of(
+            new InvalidStatusTransitionException("A venda não pode ser cancelada com o pagamento em PAID"),
+            HttpStatus.UNPROCESSABLE_CONTENT,
+            "Regra de negócio violada"
         )
     );
   }
@@ -254,5 +284,45 @@ class SaleControllerTest {
         .extractingPath("$.detail")
         .isEqualTo("Valor inválido para o parâmetro id");
     verifyNoInteractions(getSale);
+  }
+
+  @Test
+  void cancelsSale() {
+    when(cancelSale.execute(SALE_ID)).thenReturn(canceled());
+
+    var response = mvc.post().uri("/sales/{id}/cancellation", SALE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+              "paymentCode": "3f2b8c1e-5d4a-4b6f-9e7d-1a2b3c4d5e6f",
+              "paymentStatus": "CANCELED"
+            }
+            """);
+  }
+
+  @ParameterizedTest
+  @MethodSource("cancelExceptions")
+  void convertsCancellationExceptionsToHttpStatus(
+      RuntimeException exception,
+      HttpStatus expectedStatus,
+      String expectedTitle
+  ) {
+    when(cancelSale.execute(SALE_ID)).thenThrow(exception);
+
+    var response = mvc.post().uri("/sales/{id}/cancellation", SALE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(expectedStatus)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "title": "%s",
+              "detail": "%s"
+            }
+            """.formatted(expectedTitle, exception.getMessage()));
   }
 }

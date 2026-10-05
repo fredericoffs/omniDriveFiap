@@ -4,6 +4,7 @@ import br.com.fiap.omnidrive.application.gateway.PaymentGateway;
 import br.com.fiap.omnidrive.application.gateway.SaleGateway;
 import br.com.fiap.omnidrive.application.gateway.TransactionRunner;
 import br.com.fiap.omnidrive.application.gateway.VehicleGateway;
+import br.com.fiap.omnidrive.application.usecase.CancelSale;
 import br.com.fiap.omnidrive.application.usecase.CreateSale;
 import br.com.fiap.omnidrive.application.usecase.GetSale;
 import br.com.fiap.omnidrive.application.usecase.ProcessPaymentResult;
@@ -40,6 +41,21 @@ public class SaleUseCaseConfig {
     return new GetSale(
         saleGateway,
         paymentGateway
+    );
+  }
+
+  @Bean
+  CancelSale cancelSale(
+      SaleGateway saleGateway,
+      PaymentGateway paymentGateway,
+      VehicleGateway vehicleGateway,
+      TransactionRunner transactionRunner
+  ) {
+    return new CancelSale(
+        saleGateway,
+        paymentGateway,
+        vehicleGateway,
+        transactionRunner
     );
   }
 
