@@ -19,8 +19,8 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * Testes de ponta a ponta do webhook de pagamento, com a aplicação completa e o Postgres do Testcontainers: da venda
- * ao veículo vendido, à repetição, ao estorno e à recusa. Também confere que o segredo compartilhado é exigido só nas
- * rotas de webhook.
+ * ao veículo vendido, à repetição, ao estorno e à recusa. O estorno de uma venda anterior, depois da revenda do
+ * veículo, só muda o pagamento dela. Também confere que o segredo compartilhado é exigido só nas rotas de webhook.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -120,6 +120,42 @@ class PaymentWebhookApiIntegrationTest {
         .extractingPath("$.title")
         .isEqualTo("Regra de negócio violada");
     assertThat(vehicleStatus(vehicleId)).isEqualTo("AVAILABLE");
+  }
+
+  @Test
+  void refundOfPreviousSaleChangesOnlyItsPayment() throws UnsupportedEncodingException {
+    var vehicleId = availableVehicle("WEB3004", "Ford");
+    var previousPaymentCode = sell(vehicleId);
+    assertThat(sendWebhook(previousPaymentCode, "PAID")).hasStatus(HttpStatus.OK);
+    var readmitted = mvc.post().uri("/vehicles/{id}/readmission", vehicleId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+            {
+              "purchasePrice": 32000,
+              "mileage": 50000
+            }
+            """)
+        .exchange();
+    assertThat(readmitted).hasStatus(HttpStatus.OK);
+    assertThat(mvc.post().uri("/vehicles/{id}/preparation", vehicleId).exchange()).hasStatus(HttpStatus.OK);
+    assertThat(mvc.post().uri("/vehicles/{id}/release", vehicleId).exchange()).hasStatus(HttpStatus.OK);
+    var currentPaymentCode = sell(vehicleId);
+
+    var refunded = sendWebhook(previousPaymentCode, "CANCELED");
+    assertThat(refunded)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("REFUNDED");
+    assertThat(vehicleStatus(vehicleId)).isEqualTo("RESERVED");
+
+    var paid = sendWebhook(currentPaymentCode, "PAID");
+    assertThat(paid)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("PAID");
+    assertThat(vehicleStatus(vehicleId)).isEqualTo("SOLD");
   }
 
   @Test

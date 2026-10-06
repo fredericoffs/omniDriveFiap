@@ -300,7 +300,9 @@ class VehicleApiIntegrationTest {
         .content(body("UNK1005", "Fiat", 0L))
         .exchange();
 
-    assertThat(response).hasStatus(HttpStatus.NOT_FOUND);
+    assertThat(response)
+        .hasStatus(HttpStatus.NOT_FOUND)
+        .hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
   }
 
   @Test

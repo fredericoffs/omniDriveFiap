@@ -21,8 +21,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
  *
  * <p>Aqui o veículo fica Reservado, e os testes conferem que ele sai das listagens e que a venda pode ser consultada
  * pelo {@code Location} devolvido. O cancelamento pela loja devolve o veículo à venda e faz um pagamento posterior ser
- * recusado. O caminho até Vendido, pelo
- * webhook de pagamento, está no {@link PaymentWebhookApiIntegrationTest}.
+ * recusado. Um veículo vendido que volta pela reentrada pode ser vendido de novo, e a venda anterior continua
+ * consultável. Os efeitos do webhook de pagamento estão no {@link PaymentWebhookApiIntegrationTest}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -184,6 +184,72 @@ class SaleApiIntegrationTest {
         .extractingPath("$.content[*].id")
         .asArray()
         .contains(vehicleId);
+  }
+
+  @Test
+  void resellsReadmittedVehicleKeepingPreviousSale() throws UnsupportedEncodingException {
+    var vehicleId = availableVehicle("SAL2004", "Fiat");
+    var firstSale = mvc.post().uri("/sales")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(saleBody(vehicleId))
+        .exchange();
+    assertThat(firstSale).hasStatus(HttpStatus.CREATED);
+    var firstLocation = firstSale.getResponse().getHeader("Location");
+    assert firstLocation != null;
+    String firstPaymentCode = JsonPath.read(firstSale.getResponse().getContentAsString(), "$.paymentCode");
+    var paid = mvc.post().uri("/webhooks/payments")
+        .header(WebhookSecretInterceptor.HEADER, webhookProperties.secret())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+            {
+              "paymentCode": "%s",
+              "status": "PAID"
+            }
+            """.formatted(firstPaymentCode))
+        .exchange();
+    assertThat(paid).hasStatus(HttpStatus.OK);
+
+    var readmitted = mvc.post().uri("/vehicles/{id}/readmission", vehicleId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+            {
+              "purchasePrice": 32000,
+              "mileage": 50000
+            }
+            """)
+        .exchange();
+    assertThat(readmitted)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("RECEIVED");
+    assertThat(mvc.get().uri("/vehicles/sold?size=100").exchange())
+        .bodyJson()
+        .extractingPath("$.content[*].vehicle.id")
+        .asArray()
+        .doesNotContain(vehicleId);
+    assertThat(mvc.post().uri("/vehicles/{id}/preparation", vehicleId).exchange()).hasStatus(HttpStatus.OK);
+    assertThat(mvc.post().uri("/vehicles/{id}/release", vehicleId).exchange()).hasStatus(HttpStatus.OK);
+
+    var secondSale = mvc.post().uri("/sales")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(saleBody(vehicleId))
+        .exchange();
+    assertThat(secondSale)
+        .hasStatus(HttpStatus.CREATED)
+        .bodyJson()
+        .extractingPath("$.paymentStatus")
+        .isEqualTo("AWAITING_PAYMENT");
+    assertThat(secondSale.getResponse().getHeader("Location")).isNotEqualTo(firstLocation);
+    assertThat(mvc.get().uri("/vehicles/{id}", vehicleId).exchange())
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("RESERVED");
+    assertThat(mvc.get().uri(firstLocation).exchange())
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.paymentStatus")
+        .isEqualTo("PAID");
   }
 
   @Test
