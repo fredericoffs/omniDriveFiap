@@ -29,7 +29,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * Endpoints de cadastro de veículos: cadastrar, consultar, editar e excluir. As mudanças de status ficam no
  * {@link VehicleStatusController}, e as listagens no {@link VehicleListingController}.
  */
-@Tag(name = "Veículos", description = "Cadastro, consulta, edição, exclusão, preparação, reentrada e listagens de veículos")
+@Tag(name = "Veículos", description = "Cadastro, consulta, edição, exclusão, mudanças de status e listagens de veículos")
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleController {
@@ -52,6 +52,7 @@ public class VehicleController {
   }
 
   @Operation(
+      operationId = "registerVehicle",
       summary = "Cadastrar veículo",
       description = "Cadastra um veículo que chegou à loja. Ele entra com status RECEIVED (recebido)."
   )
@@ -87,6 +88,7 @@ public class VehicleController {
   }
 
   @Operation(
+      operationId = "getVehicle",
       summary = "Consultar veículo",
       description = """
           Devolve os dados atuais do veículo, inclusive a versão (campo version) que deve ser enviada na edição. \
@@ -109,6 +111,7 @@ public class VehicleController {
   }
 
   @Operation(
+      operationId = "updateVehicle",
       summary = "Editar veículo",
       description = """
           Substitui todos os dados do veículo, exceto o chassi, que não é editável. Só é permitido com status \
@@ -119,7 +122,7 @@ public class VehicleController {
   @ApiResponse(responseCode = "200", description = "Veículo atualizado")
   @ApiResponse(
       responseCode = "400",
-      description = "Corpo da requisição inválido ou campos obrigatórios ausentes",
+      description = "Id em formato inválido, corpo da requisição inválido ou campos obrigatórios ausentes",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @ApiResponse(
@@ -147,6 +150,7 @@ public class VehicleController {
   }
 
   @Operation(
+      operationId = "deleteVehicle",
       summary = "Excluir veículo",
       description = """
           Exclui um veículo cadastrado por engano, junto com o seu histórico de status. Só é permitido com status \

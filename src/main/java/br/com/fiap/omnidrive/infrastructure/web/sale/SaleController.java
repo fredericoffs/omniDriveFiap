@@ -46,6 +46,7 @@ public class SaleController {
   }
 
   @Operation(
+      operationId = "createSale",
       summary = "Efetuar venda",
       description = """
           Vende um veículo com status AVAILABLE (disponível) para o comprador informado. O valor da venda é o \
@@ -88,6 +89,7 @@ public class SaleController {
   }
 
   @Operation(
+      operationId = "getSale",
       summary = "Consultar venda",
       description = """
           Devolve a venda com o status atual do pagamento, que muda conforme o processador de pagamento informa \
@@ -110,6 +112,7 @@ public class SaleController {
   }
 
   @Operation(
+      operationId = "cancelSale",
       summary = "Cancelar venda",
       description = """
           Cancela a venda a pedido da loja, enquanto o pagamento está em AWAITING_PAYMENT (aguardando pagamento). \

@@ -30,6 +30,7 @@ public class PaymentWebhookController {
   }
 
   @Operation(
+      operationId = "receivePaymentResult",
       summary = "Informar resultado do pagamento",
       description = """
           Registra o resultado de um pagamento a partir do código dele. PAID leva o veículo a SOLD (vendido); \

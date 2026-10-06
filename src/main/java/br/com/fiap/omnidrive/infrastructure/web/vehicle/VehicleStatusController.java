@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Endpoints do ciclo de status do veículo: iniciar a preparação, liberar para venda, devolver o consignado ao dono e
- * registrar a reentrada. As
- * mudanças ligadas à venda (reserva, confirmação e estorno) vêm da venda e do webhook de pagamento.
+ * registrar a reentrada. As mudanças ligadas à venda (reserva, confirmação e estorno) vêm da venda e do webhook de
+ * pagamento.
  */
-@Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação, reentrada e listagens de veículos")
+@Tag(name = "Veículos", description = "Cadastro, consulta, edição, exclusão, mudanças de status e listagens de veículos")
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleStatusController {
@@ -47,6 +47,7 @@ public class VehicleStatusController {
   }
 
   @Operation(
+      operationId = "startVehiclePreparation",
       summary = "Iniciar preparação",
       description = """
           Coloca em preparação um veículo com status RECEIVED (recebido), na entrada, ou AVAILABLE (disponível), \
@@ -54,6 +55,11 @@ public class VehicleStatusController {
           venda até ser liberado de novo. O motivo fica registrado no histórico de status."""
   )
   @ApiResponse(responseCode = "200", description = "Veículo em preparação")
+  @ApiResponse(
+      responseCode = "400",
+      description = "Id em formato inválido",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
   @ApiResponse(
       responseCode = "404",
       description = "Veículo não encontrado",
@@ -75,12 +81,18 @@ public class VehicleStatusController {
   }
 
   @Operation(
+      operationId = "releaseVehicleForSale",
       summary = "Liberar para venda",
       description = """
           Libera para venda um veículo com status IN_PREPARATION (em preparação). Ele passa a AVAILABLE e entra \
           na listagem de veículos à venda."""
   )
   @ApiResponse(responseCode = "200", description = "Veículo disponível para venda")
+  @ApiResponse(
+      responseCode = "400",
+      description = "Id em formato inválido",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
   @ApiResponse(
       responseCode = "404",
       description = "Veículo não encontrado",
@@ -102,6 +114,7 @@ public class VehicleStatusController {
   }
 
   @Operation(
+      operationId = "returnVehicleToOwner",
       summary = "Devolver ao dono",
       description = """
           Devolve ao dono um veículo consignado (CONSIGNED) com status RECEIVED (recebido), IN_PREPARATION (em \
@@ -110,6 +123,11 @@ public class VehicleStatusController {
           entra pela reentrada."""
   )
   @ApiResponse(responseCode = "200", description = "Veículo devolvido ao dono")
+  @ApiResponse(
+      responseCode = "400",
+      description = "Id em formato inválido",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
   @ApiResponse(
       responseCode = "404",
       description = "Veículo não encontrado",
@@ -131,6 +149,7 @@ public class VehicleStatusController {
   }
 
   @Operation(
+      operationId = "readmitVehicle",
       summary = "Registrar reentrada",
       description = """
           Registra a volta à loja de um veículo com status SOLD (vendido) ou RETURNED_TO_OWNER (devolvido ao \
@@ -141,7 +160,8 @@ public class VehicleStatusController {
   @ApiResponse(responseCode = "200", description = "Veículo recebido de volta")
   @ApiResponse(
       responseCode = "400",
-      description = "Corpo da requisição inválido, ou valor de entrada ou quilometragem ausentes",
+      description = "Id em formato inválido, corpo da requisição inválido, ou valor de entrada ou quilometragem "
+          + "ausentes",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @ApiResponse(

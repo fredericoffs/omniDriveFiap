@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Endpoints de listagem de veículos: a busca com filtros, os veículos à venda e os vendidos. Todas as listagens são
  * paginadas.
  */
-@Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação, reentrada e listagens de veículos")
+@Tag(name = "Veículos", description = "Cadastro, consulta, edição, exclusão, mudanças de status e listagens de veículos")
 @RestController
 @RequestMapping("/vehicles")
 public class VehicleListingController {
@@ -41,6 +41,7 @@ public class VehicleListingController {
   }
 
   @Operation(
+      operationId = "searchVehicles",
       summary = "Buscar veículos",
       description = """
           Busca veículos em qualquer status, combinando os filtros informados, todos opcionais. Placa e chassi são \
@@ -74,6 +75,7 @@ public class VehicleListingController {
   }
 
   @Operation(
+      operationId = "listVehiclesForSale",
       summary = "Listar veículos à venda",
       description = """
           Lista os veículos com status AVAILABLE (disponível), ordenados pelo preço de venda, do menor para o \
@@ -94,6 +96,7 @@ public class VehicleListingController {
   }
 
   @Operation(
+      operationId = "listSoldVehicles",
       summary = "Listar veículos vendidos",
       description = """
           Lista os veículos com status SOLD (vendido), cada um com a venda atual, ordenados pelo valor da venda, \
