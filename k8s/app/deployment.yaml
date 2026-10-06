@@ -20,7 +20,7 @@ spec:
         runAsGroup: 1001
       initContainers:
         - name: wait-for-postgres
-          image: omnidrive-postgres:18
+          image: ghcr.io/fredericoffs/omnidrive-postgres:18
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U \"$DB_USERNAME\"; do sleep 2; done"]
           env:
@@ -39,7 +39,7 @@ spec:
             allowPrivilegeEscalation: false
       containers:
         - name: omnidrive-app
-          image: omnidrive-app:0.0.1
+          image: ghcr.io/fredericoffs/omnidrive-app:0.0.1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

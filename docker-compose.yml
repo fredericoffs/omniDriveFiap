@@ -1,7 +1,8 @@
 services:
   postgres:
     build: docker/postgres
-    image: omnidrive-postgres:18
+    image: ghcr.io/fredericoffs/omnidrive-postgres:18
+    pull_policy: build
     environment:
       POSTGRES_DB: omnidrive
       POSTGRES_USER: omnidrive
@@ -18,7 +19,8 @@ services:
 
   app:
     build: .
-    image: omnidrive-app:0.0.1
+    image: ghcr.io/fredericoffs/omnidrive-app:0.0.1
+    pull_policy: build
     depends_on:
       postgres:
         condition: service_healthy
