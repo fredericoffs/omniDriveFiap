@@ -14,16 +14,25 @@ import java.util.UUID;
 @Schema(description = "Veículo da loja")
 public record VehicleResponse(
 
-    @Schema(description = "Identificador do veículo", example = "0f8fad5b-d9cb-469f-a165-70867728950e")
+    @Schema(
+        description = "Identificador do veículo",
+        example = "0f8fad5b-d9cb-469f-a165-70867728950e",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     UUID id,
 
-    @Schema(description = "Chassi, em maiúsculas", example = "9BWZZZ377LT004251")
+    @Schema(
+        description = "Chassi, em maiúsculas",
+        example = "9BWZZZ377LT004251",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     String chassis,
 
     @Schema(
         description = "Indica se o chassi segue o padrão VIN de 17 caracteres. Veículos até 1986 podem ter chassi "
             + "em outro formato",
-        example = "true"
+        example = "true",
+        requiredMode = Schema.RequiredMode.REQUIRED
     )
     boolean vin,
 
@@ -32,45 +41,59 @@ public record VehicleResponse(
             + "obrigatório na América do Norte, mas muitas montadoras brasileiras não o calculam. Nulo quando o "
             + "chassi não é VIN",
         example = "false",
-        nullable = true
+        nullable = true,
+        requiredMode = Schema.RequiredMode.REQUIRED
     )
     Boolean vinCheckDigitValid,
 
-    @Schema(description = "Placa, em maiúsculas e sem hífen", example = "ABC1D23")
+    @Schema(
+        description = "Placa, em maiúsculas e sem hífen",
+        example = "ABC1D23",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     String plate,
 
-    @Schema(description = "Quilometragem, em km", example = "45000")
+    @Schema(description = "Quilometragem, em km", example = "45000", requiredMode = Schema.RequiredMode.REQUIRED)
     int mileage,
 
-    @Schema(description = "Marca", example = "Fiat")
+    @Schema(description = "Marca", example = "Fiat", requiredMode = Schema.RequiredMode.REQUIRED)
     String brand,
 
-    @Schema(description = "Modelo", example = "Uno")
+    @Schema(description = "Modelo", example = "Uno", requiredMode = Schema.RequiredMode.REQUIRED)
     String model,
 
-    @Schema(description = "Ano", example = "2020")
+    @Schema(description = "Ano", example = "2020", requiredMode = Schema.RequiredMode.REQUIRED)
     int year,
 
-    @Schema(description = "Cor", example = "Prata")
+    @Schema(description = "Cor", example = "Prata", requiredMode = Schema.RequiredMode.REQUIRED)
     String color,
 
-    @Schema(description = "Valor de entrada", example = "30000.00")
+    @Schema(description = "Valor de entrada", example = "30000.00", requiredMode = Schema.RequiredMode.REQUIRED)
     BigDecimal purchasePrice,
 
-    @Schema(description = "Preço de venda anunciado", example = "40000.00")
+    @Schema(description = "Preço de venda anunciado", example = "40000.00", requiredMode = Schema.RequiredMode.REQUIRED)
     BigDecimal salePrice,
 
-    @Schema(description = "Origem: OWNED (próprio da loja) ou CONSIGNED (consignado)", example = "OWNED")
+    @Schema(
+        description = "Origem: OWNED (próprio da loja) ou CONSIGNED (consignado)",
+        example = "OWNED",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     VehicleOrigin origin,
 
     @Schema(
         description = "Status: RECEIVED (recebido), IN_PREPARATION (em preparação), AVAILABLE (disponível), "
             + "RESERVED (reservado), SOLD (vendido) ou RETURNED_TO_OWNER (devolvido ao dono)",
-        example = "RECEIVED"
+        example = "RECEIVED",
+        requiredMode = Schema.RequiredMode.REQUIRED
     )
     VehicleStatus status,
 
-    @Schema(description = "Versão do veículo. Deve ser enviada na edição", example = "0")
+    @Schema(
+        description = "Versão do veículo. Deve ser enviada na edição",
+        example = "0",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     long version
 ) {
 

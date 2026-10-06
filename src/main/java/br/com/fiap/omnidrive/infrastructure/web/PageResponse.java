@@ -13,19 +13,35 @@ import java.util.function.Function;
 @Schema(description = "Página de uma listagem")
 public record PageResponse<T>(
 
-    @Schema(description = "Itens da página, na ordem da listagem")
+    @Schema(description = "Itens da página, na ordem da listagem", requiredMode = Schema.RequiredMode.REQUIRED)
     List<T> content,
 
-    @Schema(description = "Número da página, a partir de zero", example = "0")
+    @Schema(
+        description = "Número da página, a partir de zero",
+        example = "0",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     int page,
 
-    @Schema(description = "Quantidade máxima de itens por página", example = "20")
+    @Schema(
+        description = "Quantidade máxima de itens por página",
+        example = "20",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     int size,
 
-    @Schema(description = "Total de itens da listagem, somando todas as páginas", example = "42")
+    @Schema(
+        description = "Total de itens da listagem, somando todas as páginas",
+        example = "42",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     long totalElements,
 
-    @Schema(description = "Quantidade de páginas; zero se a listagem estiver vazia", example = "3")
+    @Schema(
+        description = "Quantidade de páginas; zero se a listagem estiver vazia",
+        example = "3",
+        requiredMode = Schema.RequiredMode.REQUIRED
+    )
     int totalPages
 ) {
 

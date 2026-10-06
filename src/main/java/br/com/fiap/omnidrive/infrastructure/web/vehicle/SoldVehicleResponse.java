@@ -14,10 +14,10 @@ import java.util.UUID;
 @Schema(description = "Veículo vendido, com a venda atual")
 public record SoldVehicleResponse(
 
-    @Schema(description = "Dados do veículo")
+    @Schema(description = "Dados do veículo", requiredMode = Schema.RequiredMode.REQUIRED)
     VehicleResponse vehicle,
 
-    @Schema(description = "Venda atual do veículo")
+    @Schema(description = "Venda atual do veículo", requiredMode = Schema.RequiredMode.REQUIRED)
     SaleSummary sale
 ) {
 
@@ -34,16 +34,28 @@ public record SoldVehicleResponse(
   @Schema(description = "Venda atual do veículo")
   public record SaleSummary(
 
-      @Schema(description = "Identificador da venda", example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
+      @Schema(
+          description = "Identificador da venda",
+          example = "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+          requiredMode = Schema.RequiredMode.REQUIRED
+      )
       UUID id,
 
-      @Schema(description = "Data da venda", example = "2026-10-04")
+      @Schema(description = "Data da venda", example = "2026-10-04", requiredMode = Schema.RequiredMode.REQUIRED)
       LocalDate saleDate,
 
-      @Schema(description = "Valor da venda, que define a ordem da listagem", example = "40000.00")
+      @Schema(
+          description = "Valor da venda, que define a ordem da listagem",
+          example = "40000.00",
+          requiredMode = Schema.RequiredMode.REQUIRED
+      )
       BigDecimal amount,
 
-      @Schema(description = "CPF do comprador, só com os 11 dígitos", example = "52998224725")
+      @Schema(
+          description = "CPF do comprador, só com os 11 dígitos",
+          example = "52998224725",
+          requiredMode = Schema.RequiredMode.REQUIRED
+      )
       String buyerCpf
   ) {
 
