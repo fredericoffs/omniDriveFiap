@@ -12,8 +12,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Caso de uso: reentrada de um veículo vendido que voltou à loja (Vendido → Recebido). O cadastro é o mesmo, com um
- * novo valor de entrada e uma quilometragem maior que a atual; os valores anteriores ficam registrados no histórico de
+ * Caso de uso: reentrada de um veículo vendido ou devolvido ao dono que voltou à loja (Vendido ou Devolvido ao dono →
+ * Recebido). O cadastro é o mesmo, com um novo valor de entrada e a quilometragem atual, que deve ser maior que a
+ * registrada (igual só é aceita vindo de Devolvido ao dono); os valores anteriores ficam registrados no histórico de
  * status.
  */
 public class ReadmitVehicle {
@@ -29,7 +30,7 @@ public class ReadmitVehicle {
    *
    * @return o veículo com status Recebido e o novo valor de entrada
    * @throws NotFoundException se não houver veículo com o id informado
-   * @throws InvalidStatusTransitionException se o veículo não estiver Vendido
+   * @throws InvalidStatusTransitionException se o veículo não estiver Vendido nem Devolvido ao dono
    * @throws BusinessRuleException se o novo valor de entrada ou a quilometragem não forem informados ou forem
    *     inválidos
    * @throws ConcurrentUpdateException se o veículo foi alterado por outra operação durante a mudança

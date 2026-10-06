@@ -9,6 +9,7 @@ import br.com.fiap.omnidrive.application.usecase.vehicle.ListVehiclesForSale;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.RegisterVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReturnVehicleToOwner;
 import br.com.fiap.omnidrive.application.usecase.vehicle.SearchVehicles;
 import br.com.fiap.omnidrive.application.usecase.vehicle.StartVehiclePreparation;
 import br.com.fiap.omnidrive.application.usecase.vehicle.UpdateVehicle;
@@ -61,6 +62,11 @@ public class VehicleUseCaseConfig {
   @Bean
   ReadmitVehicle readmitVehicle(VehicleGateway vehicleGateway) {
     return new ReadmitVehicle(vehicleGateway);
+  }
+
+  @Bean
+  ReturnVehicleToOwner returnVehicleToOwner(VehicleGateway vehicleGateway) {
+    return new ReturnVehicleToOwner(vehicleGateway);
   }
 
   @Bean

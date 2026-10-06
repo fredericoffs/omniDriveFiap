@@ -65,7 +65,7 @@ public record VehicleResponse(
 
     @Schema(
         description = "Status: RECEIVED (recebido), IN_PREPARATION (em preparação), AVAILABLE (disponível), "
-            + "RESERVED (reservado) ou SOLD (vendido)",
+            + "RESERVED (reservado), SOLD (vendido) ou RETURNED_TO_OWNER (devolvido ao dono)",
         example = "RECEIVED"
     )
     VehicleStatus status,

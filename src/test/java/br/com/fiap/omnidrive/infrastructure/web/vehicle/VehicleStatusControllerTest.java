@@ -10,8 +10,10 @@ import static org.mockito.Mockito.when;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicleInput;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReturnVehicleToOwner;
 import br.com.fiap.omnidrive.application.usecase.vehicle.StartVehiclePreparation;
 import br.com.fiap.omnidrive.domain.common.Money;
+import br.com.fiap.omnidrive.domain.exception.BusinessRuleException;
 import br.com.fiap.omnidrive.domain.exception.InvalidStatusTransitionException;
 import br.com.fiap.omnidrive.domain.vehicle.Chassis;
 import br.com.fiap.omnidrive.domain.vehicle.Plate;
@@ -30,7 +32,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
- * Testes da camada web do ciclo de status do veículo: preparação, liberação para venda e reentrada.
+ * Testes da camada web do ciclo de status do veículo: preparação, liberação para venda, devolução ao dono e reentrada.
  */
 @WebMvcTest(VehicleStatusController.class)
 class VehicleStatusControllerTest {
@@ -45,6 +47,9 @@ class VehicleStatusControllerTest {
 
   @MockitoBean
   private ReleaseVehicleForSale releaseVehicleForSale;
+
+  @MockitoBean
+  private ReturnVehicleToOwner returnVehicleToOwner;
 
   @MockitoBean
   private ReadmitVehicle readmitVehicle;
@@ -127,6 +132,38 @@ class VehicleStatusControllerTest {
               "detail": "Transição inválida de RECEIVED para AVAILABLE"
             }
             """);
+  }
+
+  @Test
+  void returnsVehicleToOwner() {
+    when(returnVehicleToOwner.execute(VEHICLE_ID)).thenReturn(vehicle("40000", VehicleStatus.RETURNED_TO_OWNER, 3));
+
+    var response = mvc.post().uri("/vehicles/{id}/return-to-owner", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "status": "RETURNED_TO_OWNER",
+              "version": 3
+            }
+            """);
+  }
+
+  @Test
+  void returnsUnprocessableContentWhenReturningOwnedVehicle() {
+    when(returnVehicleToOwner.execute(VEHICLE_ID))
+        .thenThrow(new BusinessRuleException("Só um veículo consignado pode ser devolvido ao dono"));
+
+    var response = mvc.post().uri("/vehicles/{id}/return-to-owner", VEHICLE_ID).exchange();
+
+    assertThat(response)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("Só um veículo consignado pode ser devolvido ao dono");
   }
 
   @Test

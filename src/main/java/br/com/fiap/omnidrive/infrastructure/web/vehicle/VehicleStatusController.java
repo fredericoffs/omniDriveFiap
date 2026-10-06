@@ -2,6 +2,7 @@ package br.com.fiap.omnidrive.infrastructure.web.vehicle;
 
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReadmitVehicle;
 import br.com.fiap.omnidrive.application.usecase.vehicle.ReleaseVehicleForSale;
+import br.com.fiap.omnidrive.application.usecase.vehicle.ReturnVehicleToOwner;
 import br.com.fiap.omnidrive.application.usecase.vehicle.StartVehiclePreparation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,7 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Endpoints do ciclo de status do veículo: iniciar a preparação, liberar para venda e registrar a reentrada. As
+ * Endpoints do ciclo de status do veículo: iniciar a preparação, liberar para venda, devolver o consignado ao dono e
+ * registrar a reentrada. As
  * mudanças ligadas à venda (reserva, confirmação e estorno) vêm da venda e do webhook de pagamento.
  */
 @Tag(name = "Veículos", description = "Cadastro, consulta, edição, preparação, reentrada e listagens de veículos")
@@ -29,15 +31,18 @@ public class VehicleStatusController {
 
   private final StartVehiclePreparation startVehiclePreparation;
   private final ReleaseVehicleForSale releaseVehicleForSale;
+  private final ReturnVehicleToOwner returnVehicleToOwner;
   private final ReadmitVehicle readmitVehicle;
 
   VehicleStatusController(
       StartVehiclePreparation startVehiclePreparation,
       ReleaseVehicleForSale releaseVehicleForSale,
+      ReturnVehicleToOwner returnVehicleToOwner,
       ReadmitVehicle readmitVehicle
   ) {
     this.startVehiclePreparation = startVehiclePreparation;
     this.releaseVehicleForSale = releaseVehicleForSale;
+    this.returnVehicleToOwner = returnVehicleToOwner;
     this.readmitVehicle = readmitVehicle;
   }
 
@@ -97,10 +102,40 @@ public class VehicleStatusController {
   }
 
   @Operation(
+      summary = "Devolver ao dono",
+      description = """
+          Devolve ao dono um veículo consignado (CONSIGNED) com status RECEIVED (recebido), IN_PREPARATION (em \
+          preparação) ou AVAILABLE (disponível), quando ele sai da loja sem ser vendido. Ele passa a \
+          RETURNED_TO_OWNER, deixa de aparecer na listagem à venda e não pode mais ser editado. Se voltar à loja, \
+          entra pela reentrada."""
+  )
+  @ApiResponse(responseCode = "200", description = "Veículo devolvido ao dono")
+  @ApiResponse(
+      responseCode = "404",
+      description = "Veículo não encontrado",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "409",
+      description = "O veículo foi alterado por outra operação durante a mudança de status",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @ApiResponse(
+      responseCode = "422",
+      description = "O veículo não é consignado, ou não está com status RECEIVED, IN_PREPARATION nem AVAILABLE",
+      content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+  )
+  @PostMapping("/{id}/return-to-owner")
+  VehicleResponse returnToOwner(@Parameter(description = "Identificador do veículo") @PathVariable UUID id) {
+    return VehicleResponse.from(returnVehicleToOwner.execute(id));
+  }
+
+  @Operation(
       summary = "Registrar reentrada",
       description = """
-          Registra a volta à loja de um veículo com status SOLD (vendido), com um novo valor de entrada e a \
-          quilometragem atual, que deve ser maior que a registrada. Ele passa a RECEIVED e segue de novo pela \
+          Registra a volta à loja de um veículo com status SOLD (vendido) ou RETURNED_TO_OWNER (devolvido ao \
+          dono), com um novo valor de entrada e a quilometragem atual, que deve ser maior que a registrada. Vindo \
+          de RETURNED_TO_OWNER, a quilometragem também pode ser igual. Ele passa a RECEIVED e segue de novo pela \
           preparação e pela liberação. O valor de entrada e a quilometragem anteriores ficam no histórico."""
   )
   @ApiResponse(responseCode = "200", description = "Veículo recebido de volta")
@@ -121,7 +156,9 @@ public class VehicleStatusController {
   )
   @ApiResponse(
       responseCode = "422",
-      description = "O veículo não está com status SOLD, ou a quilometragem não é maior que a atual",
+      description = """
+          O veículo não está com status SOLD nem RETURNED_TO_OWNER, ou a quilometragem é menor que a atual (ou \
+          igual, vindo de SOLD)""",
       content = @Content(schema = @Schema(implementation = ProblemDetail.class))
   )
   @PostMapping("/{id}/readmission")

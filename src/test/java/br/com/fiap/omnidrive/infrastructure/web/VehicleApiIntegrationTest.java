@@ -176,6 +176,74 @@ class VehicleApiIntegrationTest {
   }
 
   @Test
+  void returnsConsignedVehicleToOwnerAndReadmitsItWithSameMileage() {
+    var location = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("DEV1009", "Honda", null).replace("\"OWNED\"", "\"CONSIGNED\""))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+    assert location != null;
+    var vehicleId = location.substring(location.lastIndexOf('/') + 1);
+    assertThat(mvc.post().uri(location + "/preparation").exchange()).hasStatus(HttpStatus.OK);
+    assertThat(mvc.post().uri(location + "/release").exchange()).hasStatus(HttpStatus.OK);
+
+    var returned = mvc.post().uri(location + "/return-to-owner").exchange();
+    assertThat(returned)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("RETURNED_TO_OWNER");
+    assertThat(mvc.get().uri("/vehicles/for-sale?size=100").exchange())
+        .bodyJson()
+        .extractingPath("$.content[*].id")
+        .asArray()
+        .doesNotContain(vehicleId);
+
+    var readmitted = mvc.post().uri(location + "/readmission")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("""
+            {
+              "purchasePrice": 32000,
+              "mileage": 45000
+            }
+            """)
+        .exchange();
+    assertThat(readmitted)
+        .hasStatus(HttpStatus.OK)
+        .bodyJson()
+        .isLenientlyEqualTo("""
+            {
+              "status": "RECEIVED",
+              "purchasePrice": 32000.00
+            }
+            """);
+  }
+
+  @Test
+  void rejectsReturnToOwnerOfOwnedVehicle() {
+    var location = mvc.post().uri("/vehicles")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body("DEV1010", "Honda", null))
+        .exchange()
+        .getResponse()
+        .getHeader("Location");
+    assert location != null;
+
+    var rejected = mvc.post().uri(location + "/return-to-owner").exchange();
+
+    assertThat(rejected)
+        .hasStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+        .bodyJson()
+        .extractingPath("$.detail")
+        .isEqualTo("Só um veículo consignado pode ser devolvido ao dono");
+    assertThat(mvc.get().uri(location).exchange())
+        .bodyJson()
+        .extractingPath("$.status")
+        .isEqualTo("RECEIVED");
+  }
+
+  @Test
   void rejectsReadmissionOfVehicleThatWasNotSold() {
     var location = mvc.post().uri("/vehicles")
         .contentType(MediaType.APPLICATION_JSON)
