@@ -58,9 +58,9 @@ flowchart LR
     db[("PostgreSQL")]
 
     subgraph infra["infrastructure (Spring, JPA, web)"]
-        web["web<br/>controllers, DTOs, webhook,<br/>tratamento de erros"]
-        config["config<br/>beans dos casos de uso,<br/>OpenAPI, CORS"]
-        persistence["persistence<br/>entidades JPA, Spring Data,<br/>implementações dos gateways"]
+        web["web controllers, DTOs, webhook,<br/>tratamento de erros"]
+        config["config beans dos<br/>casos de uso,<br/>OpenAPI,<br/>CORS"]
+        persistence["persistence entidades JPA, Spring Data,<br/>implementações dos gateways"]
     end
 
     subgraph app["application (Java puro)"]
@@ -128,14 +128,14 @@ stateDiagram-v2
     AVAILABLE --> IN_PREPARATION: reparo
     AVAILABLE --> RESERVED: venda
     RESERVED --> SOLD: pagamento PAID
-    RESERVED --> AVAILABLE: DECLINED, CANCELED ou cancelamento pela loja
-    SOLD --> AVAILABLE: estorno (CANCELED depois de pago)
+    RESERVED --> AVAILABLE: DECLINED,<br/>CANCELED ou<br/>cancelamento pela loja
+    SOLD --> AVAILABLE: estorno<br/>(CANCELED depois de pago)
     SOLD --> RECEIVED: reentrada
-    RECEIVED --> RETURNED_TO_OWNER: devolução (consignado)
-    IN_PREPARATION --> RETURNED_TO_OWNER: devolução (consignado)
-    AVAILABLE --> RETURNED_TO_OWNER: devolução (consignado)
+    RECEIVED --> RETURNED_TO_OWNER: devolução<br/>(consignado)
+    IN_PREPARATION --> RETURNED_TO_OWNER: devolução<br/>(consignado)
+    AVAILABLE --> RETURNED_TO_OWNER: devolução<br/>(consignado)
     RETURNED_TO_OWNER --> RECEIVED: reentrada
-    RECEIVED --> [*]: exclusão (só sem venda)
+    RECEIVED --> [*]: exclusão<br/>(só sem venda)
 ```
 
 - A **origem** (`OWNED`, próprio da loja, ou `CONSIGNED`, consignado) é um atributo, não um status. Só o consignado pode ser devolvido ao dono.
