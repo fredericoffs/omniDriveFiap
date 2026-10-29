@@ -315,6 +315,25 @@ curl -s localhost:8080/vehicles/sold
 
 No Kubernetes, troque a porta por 30080 e o segredo por `omnidrive-k8s-webhook-secret`.
 
+### Collection do Postman
+
+A pasta `postman/` tem uma collection com o fluxo completo da API, sem nada para copiar e colar: cada requisição guarda os ids, a versão do veículo e o código do pagamento para a seguinte.
+
+| Arquivo | Conteúdo |
+|---|---|
+| `OmniDrive-Demonstracao.postman_collection.json` | 32 requisições em 6 pastas: cadastro e edição, preparação e vitrine, venda, webhook, cancelamento e estorno |
+| `OmniDrive-Docker-Compose.postman_environment.json` | Ambiente do compose: `http://localhost:8080` e `omnidrive-dev-webhook-secret` |
+| `OmniDrive-Kubernetes.postman_environment.json` | Ambiente do cluster: `http://localhost:30080` e `omnidrive-k8s-webhook-secret` |
+
+Importe os três arquivos no Postman, escolha o ambiente e execute as requisições na ordem, uma a uma ou pelo Collection Runner. Cada requisição tem verificações (aba *Test Results*), inclusive para os erros esperados: 409 de cadastro duplicado e de versão antiga, 422 de transição inválida e 401 do webhook sem o segredo. Os dados padrão (placas ABC1D23 e DEF2G34) funcionam com o banco zerado; para repetir a execução sem zerá-lo, rode antes a requisição `0.2`, que sorteia placas e chassis novos.
+
+Pela linha de comando, com o Newman:
+
+```bash
+npx newman run postman/OmniDrive-Demonstracao.postman_collection.json \
+  -e postman/OmniDrive-Docker-Compose.postman_environment.json
+```
+
 ## Regras inferidas e premissas
 
 ### Funcionalidades inferidas

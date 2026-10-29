@@ -1,0 +1,1320 @@
+{
+  "info": {
+    "name": "OmniDrive - Demonstração",
+    "description": "Fluxo completo da API para o vídeo. Rode as pastas na ordem (ou use o Collection Runner). Os ids, a version e os códigos de pagamento são guardados sozinhos nas variáveis da coleção. Escolha o ambiente OmniDrive - Docker Compose (porta 8080) ou OmniDrive - Kubernetes (porta 30080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Preparação",
+      "description": "Confere se a aplicação está no ar. Execute antes de gravar.",
+      "item": [
+        {
+          "name": "0.1 Saúde da aplicação",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Mostra o endpoint usado como probe de liveness e readiness no Kubernetes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status UP\", () => pm.expect(j.status === \"UP\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "0.2 (Opcional) Gerar novos dados do veículo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Use ao regravar sem zerar o banco: sorteia placas e chassis novos, porque placa e chassi são únicos. Na primeira gravação NÃO precisa executar (os dados padrão são ABC1D23 e DEF2G34)."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const L = 'ABCDEFGHJKLMNPRSTUVWXYZ';",
+                  "const r = s => s[Math.floor(Math.random() * s.length)];",
+                  "const n = k => Array.from({length: k}, () => Math.floor(Math.random() * 10)).join('');",
+                  "const plate = () => r(L) + r(L) + r(L) + n(1) + r(L) + n(2);",
+                  "pm.collectionVariables.set(\"plateA\", plate());",
+                  "pm.collectionVariables.set(\"plateB\", plate());",
+                  "pm.collectionVariables.set(\"chassisA\", \"9BWZZZ377LT\" + n(6));",
+                  "pm.collectionVariables.set(\"chassisB\", \"9BWZZZ377JT\" + n(6));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "console.log(\"Novos dados:\", pm.collectionVariables.get(\"plateA\"), pm.collectionVariables.get(\"plateB\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Cadastro e edição",
+      "description": "Cadastrar dois veículos, tentar duplicar e editar com controle de versão.",
+      "item": [
+        {
+          "name": "1.1 Cadastrar veículo A (Fiat Uno, R$ 40.000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "description": "Nasce com status RECEIVED. O id e a version são guardados nas variáveis.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chassis\": \"{{chassisA}}\",\n  \"plate\": \"{{plateA}}\",\n  \"mileage\": 45000,\n  \"brand\": \"Fiat\",\n  \"model\": \"Uno\",\n  \"year\": 2020,\n  \"color\": \"Prata\",\n  \"purchasePrice\": 30000,\n  \"salePrice\": 40000,\n  \"origin\": \"OWNED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status RECEIVED\", () => pm.expect(j.status === \"RECEIVED\").to.be.true);",
+                  "pm.collectionVariables.set(\"vehicleAId\", String(j.id));",
+                  "pm.collectionVariables.set(\"vehicleAVersion\", String(j.version));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Cadastrar veículo B (VW Gol, R$ 25.000)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "description": "Mais barato que o A, para mostrar a ordenação por preço.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chassis\": \"{{chassisB}}\",\n  \"plate\": \"{{plateB}}\",\n  \"mileage\": 80000,\n  \"brand\": \"Volkswagen\",\n  \"model\": \"Gol\",\n  \"year\": 2018,\n  \"color\": \"Branco\",\n  \"purchasePrice\": 18000,\n  \"salePrice\": 25000,\n  \"origin\": \"OWNED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status RECEIVED\", () => pm.expect(j.status === \"RECEIVED\").to.be.true);",
+                  "pm.collectionVariables.set(\"vehicleBId\", String(j.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Cadastrar o veículo A de novo (esperado: 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "description": "Placa e chassi são únicos: a API recusa o cadastro duplicado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chassis\": \"{{chassisA}}\",\n  \"plate\": \"{{plateA}}\",\n  \"mileage\": 45000,\n  \"brand\": \"Fiat\",\n  \"model\": \"Uno\",\n  \"year\": 2020,\n  \"color\": \"Prata\",\n  \"purchasePrice\": 30000,\n  \"salePrice\": 40000,\n  \"origin\": \"OWNED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 409\", () => pm.response.to.have.status(409));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Título Registro duplicado\", () => pm.expect(j.title === \"Registro duplicado\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Consultar veículo A",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}"
+              ]
+            },
+            "description": "Mostre o campo version: é o controle de concorrência otimista."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set(\"vehicleAVersion\", String(j.version));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Editar veículo A (cor e preço)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}"
+              ]
+            },
+            "description": "Envia a version lida. A cor vira Preto e o preço de venda vai para 41.000.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plate\": \"{{plateA}}\",\n  \"mileage\": 45000,\n  \"brand\": \"Fiat\",\n  \"model\": \"Uno\",\n  \"year\": 2020,\n  \"color\": \"Preto\",\n  \"purchasePrice\": 30000,\n  \"salePrice\": 41000,\n  \"origin\": \"OWNED\",\n  \"version\": {{vehicleAVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"vehicleAStaleVersion\", pm.collectionVariables.get(\"vehicleAVersion\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Cor Preto\", () => pm.expect(j.color === \"Preto\").to.be.true);",
+                  "pm.test(\"Preço de venda 41000\", () => pm.expect(j.salePrice === 41000).to.be.true);",
+                  "pm.collectionVariables.set(\"vehicleAVersion\", String(j.version));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.6 Editar veículo A com a versão antiga (esperado: 409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}"
+              ]
+            },
+            "description": "Simula outra pessoa que alterou o veículo no meio-tempo: a edição é recusada em vez de sobrescrever.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plate\": \"{{plateA}}\",\n  \"mileage\": 45000,\n  \"brand\": \"Fiat\",\n  \"model\": \"Uno\",\n  \"year\": 2020,\n  \"color\": \"Preto\",\n  \"purchasePrice\": 30000,\n  \"salePrice\": 41000,\n  \"origin\": \"OWNED\",\n  \"version\": {{vehicleAStaleVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 409\", () => pm.response.to.have.status(409));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Mensagem de conflito\", () => pm.expect(j.detail.includes(\"alterado por outra operação\")).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Preparação e vitrine",
+      "description": "O veículo só aparece à venda depois de Recebido → Em Preparação → Disponível.",
+      "item": [
+        {
+          "name": "2.1 Listar à venda (esperado: vazia)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/for-sale",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "for-sale"
+              ]
+            },
+            "description": "Nenhum veículo está Disponível ainda."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Lista vazia\", () => pm.expect(j.totalElements === 0).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Liberar A sem preparar (esperado: 422)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}/release",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}",
+                "release"
+              ]
+            },
+            "description": "A própria entidade impede pular etapa."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Regra de negócio violada\", () => pm.expect(j.title === \"Regra de negócio violada\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Iniciar preparação de A",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}/preparation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}",
+                "preparation"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status IN_PREPARATION\", () => pm.expect(j.status === \"IN_PREPARATION\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Iniciar preparação de B",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleBId}}/preparation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleBId}}",
+                "preparation"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status IN_PREPARATION\", () => pm.expect(j.status === \"IN_PREPARATION\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.5 Liberar A para venda",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}/release",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}",
+                "release"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status AVAILABLE\", () => pm.expect(j.status === \"AVAILABLE\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Liberar B para venda",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleBId}}/release",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleBId}}",
+                "release"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status AVAILABLE\", () => pm.expect(j.status === \"AVAILABLE\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.7 Listar à venda (B antes de A)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/for-sale",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "for-sale"
+              ]
+            },
+            "description": "Ordenada por preço crescente: Gol (25.000) e depois Uno (41.000). Mostre também os campos de paginação."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Dois veículos\", () => pm.expect(j.totalElements === 2).to.be.true);",
+                  "pm.test(\"Primeiro é o mais barato (25000)\", () => pm.expect(j.content[0].salePrice === 25000).to.be.true);",
+                  "pm.test(\"Segundo é o Uno (41000)\", () => pm.expect(j.content[1].salePrice === 41000).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.8 Buscar por placa (minúsculas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles?plate={{plateSearch}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ],
+              "query": [
+                {
+                  "key": "plate",
+                  "value": "{{plateSearch}}"
+                }
+              ]
+            },
+            "description": "A busca normaliza a placa (maiúsculas, sem hífen) antes de consultar."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"plateSearch\", pm.collectionVariables.get(\"plateA\").toLowerCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Achou 1 veículo\", () => pm.expect(j.totalElements === 1).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Venda",
+      "description": "Venda cria o pagamento Aguardando e reserva o veículo.",
+      "item": [
+        {
+          "name": "3.1 Efetuar venda do veículo A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "CPF do comprador e data de hoje (a API recusa data futura). Guarda o paymentCode.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{vehicleAId}}\",\n  \"buyerCpf\": \"{{buyerCpf}}\",\n  \"saleDate\": \"{{saleDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = new Date();",
+                  "const p = n => String(n).padStart(2, '0');",
+                  "pm.collectionVariables.set(\"saleDate\", d.getFullYear() + \"-\" + p(d.getMonth() + 1) + \"-\" + p(d.getDate()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Pagamento AWAITING_PAYMENT\", () => pm.expect(j.paymentStatus === \"AWAITING_PAYMENT\").to.be.true);",
+                  "pm.test(\"Valor copiado do preço do veículo (41000)\", () => pm.expect(j.amount === 41000).to.be.true);",
+                  "pm.collectionVariables.set(\"saleAId\", String(j.id));",
+                  "pm.collectionVariables.set(\"paymentCodeA\", String(j.paymentCode));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Consultar veículo A (RESERVED)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}"
+              ]
+            },
+            "description": "O veículo ficou reservado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Veículo está RESERVED\", () => pm.expect(j.status === \"RESERVED\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Listar à venda (só o B)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/for-sale",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "for-sale"
+              ]
+            },
+            "description": "O A saiu da vitrine."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Só um veículo\", () => pm.expect(j.totalElements === 1).to.be.true);",
+                  "pm.test(\"É o Gol\", () => pm.expect(j.content[0].salePrice === 25000).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Consultar a venda A",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sales/{{saleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleAId}}"
+              ]
+            },
+            "description": "Venda com o status do pagamento."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Aguardando pagamento\", () => pm.expect(j.paymentStatus === \"AWAITING_PAYMENT\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Webhook de pagamento",
+      "description": "O processador informa o resultado. Exige o header X-Webhook-Secret.",
+      "item": [
+        {
+          "name": "4.1 Webhook SEM o segredo (esperado: 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "Sem o header X-Webhook-Secret a API responde 401.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentCode\": \"{{paymentCodeA}}\",\n  \"status\": \"PAID\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Webhook PAID com o segredo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Secret",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "Com o header X-Webhook-Secret (variável webhookSecret do ambiente) o pagamento é confirmado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentCode\": \"{{paymentCodeA}}\",\n  \"status\": \"PAID\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status PAID\", () => pm.expect(j.status === \"PAID\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Webhook PAID repetido (idempotente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Secret",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "O processador pode reenviar a notificação: a resposta é a mesma e nada muda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentCode\": \"{{paymentCodeA}}\",\n  \"status\": \"PAID\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status PAID\", () => pm.expect(j.status === \"PAID\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.4 Consultar veículo A (SOLD)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}"
+              ]
+            },
+            "description": "O veículo agora está Vendido."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Veículo está SOLD\", () => pm.expect(j.status === \"SOLD\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.5 Listar vendidos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/sold",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "sold"
+              ]
+            },
+            "description": "Ordenada pelo valor da venda crescente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Veículo A vendido por 41000\", () => pm.expect(j.content.some(x => x.vehicle.id === pm.collectionVariables.get('vehicleAId') && x.sale.amount === 41000)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.6 Webhook com código inexistente (esperado: 404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Secret",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "Código de pagamento que não existe.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentCode\": \"00000000-0000-0000-0000-000000000000\",\n  \"status\": \"PAID\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Cancelamento e estorno",
+      "description": "A loja cancela antes de pagar; o processador estorna depois de pago.",
+      "item": [
+        {
+          "name": "5.1 Efetuar venda do veículo B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "Nova venda, agora do Gol.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": \"{{vehicleBId}}\",\n  \"buyerCpf\": \"{{buyerCpf}}\",\n  \"saleDate\": \"{{saleDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = new Date();",
+                  "const p = n => String(n).padStart(2, '0');",
+                  "pm.collectionVariables.set(\"saleDate\", d.getFullYear() + \"-\" + p(d.getMonth() + 1) + \"-\" + p(d.getDate()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set(\"saleBId\", String(j.id));",
+                  "pm.collectionVariables.set(\"paymentCodeB\", String(j.paymentCode));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Cancelar a venda B pela loja",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sales/{{saleBId}}/cancellation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleBId}}",
+                "cancellation"
+              ]
+            },
+            "description": "Enquanto o pagamento aguarda: pagamento Cancelado e veículo volta a Disponível."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Pagamento CANCELED\", () => pm.expect(j.paymentStatus === \"CANCELED\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Consultar veículo B (AVAILABLE)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleBId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleBId}}"
+              ]
+            },
+            "description": "Voltou para a vitrine."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Veículo está AVAILABLE\", () => pm.expect(j.status === \"AVAILABLE\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 Estorno: webhook CANCELED do pagamento já pago (A)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Secret",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "Cancelamento depois de pago: o pagamento vira Estornado e o veículo volta a Disponível.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentCode\": \"{{paymentCodeA}}\",\n  \"status\": \"CANCELED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Status REFUNDED\", () => pm.expect(j.status === \"REFUNDED\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Consultar a venda A (REFUNDED)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sales/{{saleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales",
+                "{{saleAId}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Pagamento REFUNDED\", () => pm.expect(j.paymentStatus === \"REFUNDED\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Consultar veículo A (AVAILABLE)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleAId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleAId}}"
+              ]
+            },
+            "description": "O veículo estornado voltou a ficar disponível."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Veículo está AVAILABLE\", () => pm.expect(j.status === \"AVAILABLE\").to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "webhookSecret",
+      "value": "omnidrive-dev-webhook-secret"
+    },
+    {
+      "key": "buyerCpf",
+      "value": "52998224725"
+    },
+    {
+      "key": "plateA",
+      "value": "ABC1D23"
+    },
+    {
+      "key": "chassisA",
+      "value": "9BWZZZ377LT004251"
+    },
+    {
+      "key": "plateB",
+      "value": "DEF2G34"
+    },
+    {
+      "key": "chassisB",
+      "value": "9BWZZZ377JT004252"
+    }
+  ]
+}
