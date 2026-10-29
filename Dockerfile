@@ -10,6 +10,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     && java -Djarmode=tools -jar target/omni-drive-*.jar extract --layers --launcher --destination target/extracted
 
 FROM eclipse-temurin:25-jre-alpine
+RUN apk upgrade --no-cache
 WORKDIR /app
 COPY --from=build /workspace/target/extracted/dependencies/ ./
 COPY --from=build /workspace/target/extracted/spring-boot-loader/ ./
