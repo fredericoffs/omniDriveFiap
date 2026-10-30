@@ -1,0 +1,19 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+
+# SO
+.DS_Store
+
+# Ambiente local
+.env

@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omnidrive-app
+  labels:
+    app: omnidrive-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: omnidrive-app
+  template:
+    metadata:
+      labels:
+        app: omnidrive-app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      initContainers:
+        - name: wait-for-postgres
+          image: ghcr.io/fredericoffs/omnidrive-postgres:18
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -h postgres -p 5432 -U \"$DB_USERNAME\"; do sleep 2; done"]
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+      containers:
+        - name: omnidrive-app
+          image: ghcr.io/fredericoffs/omnidrive-app:0.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: omnidrive-app-config
+            - secretRef:
+                name: omnidrive-app-secret
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
